@@ -8,6 +8,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // ============================================================
+  // SUPABASE CONFIG — cloud sync for notes
+  // ============================================================
+  window.SUPABASE_CONFIG = {
+    url: 'https://buuztipzwbpgqnnbigma.supabase.co',
+    anonKey: 'sb_publishable_Sw9potaaGGCoJQKQU42VFA_kgKslJWb'
+  };
+</script>
 
 <!--
 ╔══════════════════════════════════════════════════════════════════════╗
@@ -253,6 +263,34 @@ window.QUESTIONS = [
 
   .footer-note { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.05em; line-height: 1.7; }
   .footer-note code { background: var(--bg-elev); padding: 2px 6px; color: var(--accent-2); font-family: var(--mono); }
+
+  /* Cloud Sync widget */
+  .cloud-sync { display: inline-flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--bg-elev); border: 1px solid var(--line); font-size: 11px; letter-spacing: 0.05em; cursor: pointer; transition: border-color 0.15s; font-family: inherit; color: var(--ink); border-radius: 2px; }
+  .cloud-sync:hover { border-color: var(--ink-dim); }
+  .cloud-sync.online { border-color: var(--accent-2); }
+  .cloud-sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); transition: background 0.2s, box-shadow 0.2s; }
+  .cloud-sync.online .dot { background: var(--accent-2); box-shadow: 0 0 0 3px rgba(0,212,168,0.18); }
+  .cloud-sync.syncing .dot { background: var(--accent-3); animation: sync-pulse 1s infinite; }
+  @keyframes sync-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .cloud-sync .label { color: var(--ink-dim); text-transform: uppercase; }
+  .cloud-sync .email { color: var(--ink); font-weight: 600; }
+
+  .auth-modal { max-width: 440px; }
+  .auth-modal h3 { font-size: 24px; margin-bottom: 6px; }
+  .auth-modal .sub { color: var(--ink-dim); font-size: 12px; margin-bottom: 20px; }
+  .auth-modal input[type="email"] { width: 100%; padding: 12px 14px; background: var(--bg-elev-2); border: 1px solid var(--line); color: var(--ink); font-family: var(--mono); font-size: 13px; border-radius: 2px; margin-bottom: 12px; }
+  .auth-modal input[type="email"]:focus { outline: none; border-color: var(--accent-2); }
+  .auth-modal .auth-submit { width: 100%; padding: 12px; background: var(--accent-2); border: none; color: var(--bg); font-family: var(--serif); font-weight: 600; font-size: 14px; letter-spacing: 0.03em; cursor: pointer; transition: opacity 0.15s; border-radius: 2px; }
+  .auth-modal .auth-submit:hover { opacity: 0.85; }
+  .auth-modal .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-modal .auth-msg { margin-top: 14px; padding: 12px; border-left: 2px solid var(--accent-3); background: rgba(255,210,63,0.06); font-size: 12px; line-height: 1.6; }
+  .auth-modal .auth-msg.error { border-left-color: var(--danger); background: rgba(255,62,95,0.06); color: var(--danger); }
+  .auth-modal .auth-msg.ok { border-left-color: var(--accent-2); background: rgba(0,212,168,0.06); color: var(--accent-2); }
+  .auth-modal .logged-in { background: var(--bg-elev-2); padding: 16px; border: 1px solid var(--line); margin-bottom: 14px; }
+  .auth-modal .logged-in .who { font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--accent-2); margin-bottom: 4px; }
+  .auth-modal .logged-in .since { font-size: 11px; color: var(--ink-dim); }
+  .auth-modal .signout-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--danger); color: var(--danger); font-family: inherit; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-radius: 2px; }
+  .auth-modal .signout-btn:hover { background: var(--danger); color: var(--bg); }
 </style>
 </head>
 <body>
@@ -273,6 +311,10 @@ window.QUESTIONS = [
         <div class="num mint" id="stat-domains">0</div>
         <div class="lbl">Domains Hit</div>
       </div>
+      <button class="cloud-sync" id="cloud-sync-btn" onclick="openAuthModal()">
+        <span class="dot"></span>
+        <span id="cloud-sync-text"><span class="label">Cloud Sync</span> <span class="email">OFF</span></span>
+      </button>
     </div>
   </header>
 
@@ -333,6 +375,10 @@ window.QUESTIONS = [
   <div class="modal" id="modal-content"></div>
 </div>
 
+<div class="modal-backdrop" id="modal-auth">
+  <div class="modal auth-modal" id="modal-auth-content"></div>
+</div>
+
 <script>
   const DOMAINS = {
     1: { name: 'Resilient Architectures', color: '#ff6b35' },
@@ -355,23 +401,200 @@ window.QUESTIONS = [
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // ============================================================
+  // Supabase cloud sync
+  // ============================================================
+  const sb = window.supabase.createClient(
+    window.SUPABASE_CONFIG.url,
+    window.SUPABASE_CONFIG.anonKey,
+    { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+  );
+
+  let currentUser = null;
+  let cloudOnline = false;
+
+  function setCloudState(state, userEmail) {
+    // state: 'off' | 'online' | 'syncing'
+    const btn = document.getElementById('cloud-sync-btn');
+    const text = document.getElementById('cloud-sync-text');
+    if (!btn || !text) return;
+    btn.classList.remove('online', 'syncing');
+    if (state === 'online') {
+      btn.classList.add('online');
+      text.innerHTML = `<span class="label">Synced</span> <span class="email">${escapeHtml(userEmail || '')}</span>`;
+    } else if (state === 'syncing') {
+      btn.classList.add('syncing');
+      text.innerHTML = `<span class="label">Syncing…</span>`;
+    } else {
+      text.innerHTML = `<span class="label">Cloud Sync</span> <span class="email">OFF</span>`;
+    }
+  }
+
+  async function loadNotesFromCloud() {
+    if (!currentUser) return;
+    setCloudState('syncing');
+    try {
+      const { data, error } = await sb.from('notes').select('question_id, content, updated_at');
+      if (error) throw error;
+
+      // Cloud 값이 있는 질문은 cloud 버전으로 덮어씀
+      const cloudMap = {};
+      (data || []).forEach(r => { cloudMap[r.question_id] = r.content; notes[r.question_id] = r.content; });
+
+      // 로컬에만 있는 메모를 cloud에 업로드 (첫 로그인 시 마이그레이션)
+      const toUpload = [];
+      for (const qid of Object.keys(notes)) {
+        if (!(qid in cloudMap) && notes[qid] && notes[qid].trim() !== '') {
+          toUpload.push({ user_id: currentUser.id, question_id: qid, content: notes[qid] });
+        }
+      }
+      if (toUpload.length > 0) {
+        const { error: upErr } = await sb.from('notes').upsert(toUpload);
+        if (upErr) console.warn('migration upsert failed:', upErr);
+      }
+
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      setCloudState('online', currentUser.email);
+    } catch (e) {
+      console.error('loadNotesFromCloud:', e);
+      setCloudState('off');
+    }
+  }
+
+  async function initAuth() {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && session.user) {
+        currentUser = session.user;
+        cloudOnline = true;
+        await loadNotesFromCloud();
+      } else {
+        setCloudState('off');
+      }
+    } catch (e) {
+      console.error('initAuth:', e);
+      setCloudState('off');
+    }
+
+    sb.auth.onAuthStateChange(async (event, sess) => {
+      if (event === 'SIGNED_IN' && sess && sess.user) {
+        currentUser = sess.user;
+        cloudOnline = true;
+        await loadNotesFromCloud();
+        closeAuthModal();
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        cloudOnline = false;
+        setCloudState('off');
+      }
+    });
+  }
+
+  // ---- Save note (cloud + local) ----
   let saveNoteTimer = null;
   function saveNote(id, value) {
     notes[id] = value;
     const status = document.getElementById('memo-status');
     if (status) { status.textContent = '저장 중...'; status.classList.remove('saved'); }
     if (saveNoteTimer) clearTimeout(saveNoteTimer);
-    saveNoteTimer = setTimeout(() => {
+    saveNoteTimer = setTimeout(async () => {
+      // 항상 로컬 저장 (오프라인 캐시)
       localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-      if (status) {
-        status.textContent = '✓ 저장됨';
-        status.classList.add('saved');
-        setTimeout(() => {
-          if (status && status.textContent === '✓ 저장됨') status.textContent = '';
-        }, 1500);
+
+      if (cloudOnline && currentUser) {
+        try {
+          const { error } = await sb.from('notes').upsert({
+            user_id: currentUser.id,
+            question_id: id,
+            content: value,
+            updated_at: new Date().toISOString(),
+          });
+          if (error) throw error;
+          if (status) {
+            status.textContent = '✓ 클라우드 저장됨';
+            status.classList.add('saved');
+            setTimeout(() => { if (status && status.textContent.startsWith('✓')) status.textContent = ''; }, 1800);
+          }
+        } catch (e) {
+          console.error('cloud save:', e);
+          if (status) { status.textContent = '⚠ 클라우드 실패 — 로컬 저장됨'; }
+        }
+      } else {
+        if (status) {
+          status.textContent = '✓ 로컬 저장됨 (로그인 시 동기화)';
+          status.classList.add('saved');
+          setTimeout(() => { if (status && status.textContent.startsWith('✓')) status.textContent = ''; }, 1800);
+        }
       }
     }, 400);
   }
+
+  // ---- Auth modal ----
+  function openAuthModal() {
+    renderAuthModal();
+    document.getElementById('modal-auth').classList.add('open');
+  }
+  function closeAuthModal() {
+    document.getElementById('modal-auth').classList.remove('open');
+  }
+  function renderAuthModal(msg, msgType) {
+    const el = document.getElementById('modal-auth-content');
+    if (currentUser) {
+      const since = currentUser.last_sign_in_at ? new Date(currentUser.last_sign_in_at).toLocaleString('ko-KR') : '';
+      el.innerHTML = `
+        <button class="close" onclick="closeAuthModal()">×</button>
+        <h3>Cloud Sync</h3>
+        <p class="sub">메모가 Supabase에 자동 저장되고 모든 기기에서 동기화됩니다.</p>
+        <div class="logged-in">
+          <div class="who">${escapeHtml(currentUser.email)}</div>
+          <div class="since">마지막 로그인: ${escapeHtml(since)}</div>
+        </div>
+        <button class="signout-btn" onclick="signOut()">로그아웃</button>
+      `;
+    } else {
+      el.innerHTML = `
+        <button class="close" onclick="closeAuthModal()">×</button>
+        <h3>Cloud Sync 로그인</h3>
+        <p class="sub">이메일로 매직 링크를 받습니다. 비밀번호 없이 클릭 한 번으로 로그인.</p>
+        <form onsubmit="handleMagicLink(event)">
+          <input type="email" id="auth-email" placeholder="your@email.com" required autocomplete="email" />
+          <button type="submit" class="auth-submit" id="auth-submit-btn">매직 링크 받기</button>
+        </form>
+        ${msg ? `<div class="auth-msg ${msgType || ''}">${msg}</div>` : ''}
+      `;
+    }
+  }
+
+  async function handleMagicLink(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    if (!email) return;
+    const btn = document.getElementById('auth-submit-btn');
+    btn.disabled = true;
+    btn.textContent = '전송 중...';
+    try {
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname }
+      });
+      if (error) throw error;
+      renderAuthModal(`✓ <strong>${escapeHtml(email)}</strong>로 매직 링크를 보냈습니다. 이메일의 링크를 클릭하면 자동 로그인됩니다.`, 'ok');
+    } catch (e) {
+      console.error('magic link:', e);
+      renderAuthModal(`전송 실패: ${escapeHtml(e.message || e.toString())}`, 'error');
+    }
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    closeAuthModal();
+  }
+
+  document.getElementById('modal-auth').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-auth') closeAuthModal();
+  });
+
+  initAuth();
 
   let chart = null;
   let currentFilter = 'all';
