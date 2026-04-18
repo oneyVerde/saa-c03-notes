@@ -72,6 +72,22 @@ window.QUESTIONS = [
     correct: "A",
     picked: "",
     explain: "<p><strong>핵심</strong>: 글로벌 사용자에게 정적(S3) + 동적(ALB) 콘텐츠를 모두 저지연으로 전달하는 문제. 정답은 <strong>CloudFront 단일 배포에 오리진 2개를 매달고, 경로 패턴(path pattern)으로 분기</strong>하는 것. Route 53 alias → CloudFront 한 방이면 끝납니다.</p><p><strong>A가 정답인 이유</strong>: CloudFront는 <em>multi-origin</em>을 공식 지원합니다. 예: <code>/static/*</code>은 S3 오리진, 그 외는 ALB 오리진. 정적은 엣지 캐싱으로 레이턴시 절감, 동적은 CloudFront가 <strong>AWS 백본 네트워크</strong>로 오리진까지 라우팅해 TCP/TLS 종료를 엣지에서 수행하므로 일반 인터넷 경로 대비 빠릅니다. 운영·비용·구성 모두 가장 단순합니다.</p><p><strong>CloudFront vs Global Accelerator 구분</strong>: CloudFront = <strong>HTTP(S) 캐시 + 동적 가속</strong> (L7, 웹 콘텐츠). Global Accelerator = <strong>정적 Anycast IP로 TCP/UDP 가속</strong> (L4, 비-HTTP/게임/실시간). 웹 앱에는 <strong>CloudFront가 기본</strong>입니다.</p><p><strong>B가 오답인 이유</strong>: S3를 Global Accelerator 엔드포인트로? Global Accelerator는 ALB/NLB/EC2/EIP만 엔드포인트로 받습니다. <strong>S3는 Global Accelerator 엔드포인트가 될 수 없음</strong>. 구성 자체가 성립 안 함.</p><p><strong>C가 오답인 이유</strong>: CloudFront 앞에 Global Accelerator를 씌우는 건 <strong>의미 없는 중복</strong>입니다. CloudFront는 이미 엣지에서 Anycast로 트래픽을 받고 있어서, 앞단에 GA를 또 얹어봐야 오히려 홉만 늘어나고 비용·지연이 증가합니다.</p><p><strong>D가 오답인 이유</strong>: B와 같은 문제(S3는 GA 엔드포인트 불가) + 도메인을 둘로 쪼개는 것은 요구(단일 자체 도메인 사용)와 어긋나고 운영 복잡도만 키웁니다.</p><p><strong>암기 트리거</strong>: '정적 + 동적 + 글로벌 웹' → <strong>CloudFront multi-origin (S3 + ALB)</strong>. Route 53 alias로 연결. <em>Global Accelerator는 L4 TCP/UDP 워크로드 전용</em>으로 기억하기.</p>"
+  },
+  {
+    id: "q15",
+    num: 15,
+    domain: 3,                                 // 1=Resilient, 2=Performance, 3=Secure, 4=Cost
+    topic: "AWS Network Firewall (VPC 인·아웃바운드 트래픽 검사)",
+    body: "최근 AWS로 마이그레이션한 한 회사가 프로덕션 VPC로 들어오고 나가는 트래픽을 보호하기 위한 솔루션을 구현하려고 합니다. 이 회사는 온프레미스 데이터 센터에 트래픽 흐름 검사 및 트래픽 필터링과 같은 특정 작업을 수행하는 검사 서버를 보유하고 있었습니다. 회사는 AWS 클라우드에서도 동일한 기능을 구현하고자 합니다. 이러한 요구 사항을 충족하는 솔루션은 무엇일까요?",
+    options: [
+      { k: "A", v: "프로덕션 VPC에서 트래픽 검사 및 트래픽 필터링을 위해 Amazon GuardDuty를 사용합니다." },
+      { k: "B", v: "트래픽 미러링을 사용하여 프로덕션 VPC의 트래픽을 미러링하여 트래픽을 검사하고 필터링합니다." },
+      { k: "C", v: "AWS Network Firewall을 사용하여 프로덕션 VPC에 대한 트래픽 검사 및 필터링에 필요한 규칙을 생성합니다." },
+      { k: "D", v: "AWS Firewall Manager를 사용하여 프로덕션 VPC에 대한 트래픽 검사 및 필터링에 필요한 규칙을 생성합니다." }
+    ],
+    correct: "C",
+    picked: "",
+    explain: "<p><strong>핵심 키워드 매핑</strong>: '온프레미스 <em>검사 서버(inspection server)</em> → AWS에서 동일 기능' = <strong>AWS Network Firewall</strong>. 이 서비스가 곧 관리형 IPS/IDS + 방화벽 어플라이언스입니다. VPC 수준에서 stateful 패킷 검사, Suricata 호환 규칙, 도메인/URL 필터링을 수행합니다.</p><p><strong>C가 정답인 이유</strong>: AWS Network Firewall은 VPC에 <em>firewall endpoint</em>를 배치해 subnet 라우팅을 그쪽으로 꺾어 <strong>모든 인·아웃바운드 트래픽을 실제로 검사·차단</strong>합니다. stateful(5-tuple 상태 추적) + stateless rule group, 프로토콜 검사, TLS SNI 기반 도메인 필터링까지 지원 → 온프레 검사 서버 대체재로 딱 맞습니다.</p><p><strong>A (GuardDuty) 오답</strong>: GuardDuty는 <strong>위협 탐지(detection-only)</strong> 서비스입니다. VPC Flow Logs/DNS Logs/CloudTrail을 분석해 의심 행위를 <em>알려줄 뿐</em>, 트래픽을 가로채 <strong>차단·필터링하지 않습니다</strong>. '탐지 ≠ 차단' 이 핵심 구분.</p><p><strong>B (Traffic Mirroring) 오답</strong>: Traffic Mirroring은 트래픽을 ENI로 <strong>복제</strong>해서 외부 분석 도구(IDS 등)로 보내는 용도입니다. 그 자체로 <em>검사만 하고 차단/필터링은 못함</em>. 원본 트래픽은 그대로 흘러갑니다.</p><p><strong>D (Firewall Manager) 오답</strong>: Firewall Manager는 AWS Organizations 전반에 걸쳐 <strong>WAF/Shield/Network Firewall/Security Group 규칙을 중앙 관리</strong>하는 거버넌스 도구입니다. 자체적으로 패킷을 검사하지 않습니다. 실제 검사·필터링은 하위의 Network Firewall/WAF가 수행. 단일 VPC에 인·아웃 트래픽 검사만 필요한 본 시나리오엔 과도하고 부적합.</p><p><strong>암기 트리거 (헷갈리는 4종 구분)</strong>:<br>• <strong>Network Firewall</strong> = VPC 레벨 <em>stateful 패킷 검사/차단</em> (IDS+IPS+방화벽)<br>• <strong>WAF</strong> = L7 <em>HTTP(S) 요청 필터링</em> (SQLi, XSS, ALB/CloudFront/API Gateway 앞단)<br>• <strong>GuardDuty</strong> = 로그 기반 <em>위협 탐지·알림만</em> (차단 X)<br>• <strong>Firewall Manager</strong> = 여러 계정/VPC 정책 <em>중앙 관리</em> (자체 검사 X)<br>• <strong>Traffic Mirroring</strong> = 트래픽 <em>복제 → 외부 분석</em>용 (차단 X)<br>→ '검사 서버 대체' 또는 '인·아웃 차단' 키워드 = <strong>Network Firewall</strong>.</p>"
   }
 ];
 // ============================================================
