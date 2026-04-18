@@ -56,6 +56,22 @@ window.QUESTIONS = [
     correct: "B",
     picked: "",
     explain: "<p><strong>핵심 패턴</strong>: '기본 서버(primary/dispatcher) → 여러 컴퓨팅 노드'로 작업을 분산하는 구조는 AWS에서 <strong>SQS + Auto Scaling Group</strong>으로 현대화하는 것이 정석입니다. 기본 서버라는 SPOF(단일 장애점)를 제거하고 큐가 작업을 보관·완충합니다.</p><p><strong>B가 정답인 이유</strong>: 워크로드가 <em>가변적</em>(variable)이므로 스케일링 기준도 동적이어야 합니다. CloudWatch의 <code>ApproximateNumberOfMessagesVisible</code> 또는 <strong>backlog per instance</strong> 지표 기반 <em>target tracking</em> 스케일링을 걸면, 큐에 쌓인 양만큼 컴퓨팅 노드가 자동으로 늘고 줄어 복원력·확장성이 모두 극대화됩니다.</p><p><strong>A가 오답인 이유</strong>: <strong>Scheduled scaling</strong>은 '매일 9시에 +5대'처럼 <em>예측 가능한 패턴</em>에만 적합합니다. 가변 워크로드에는 부족하거나 낭비가 발생합니다.</p><p><strong>C가 오답인 이유</strong>: <strong>CloudTrail</strong>은 API 호출 감사 로그 서비스이지 작업 큐가 아닙니다. 'work target'으로 쓸 수 없습니다. 또한 기본 서버를 그대로 두면 SPOF가 남아 복원력 요구를 충족하지 못합니다.</p><p><strong>D가 오답인 이유</strong>: EventBridge는 이벤트 라우팅용이지 일감을 버퍼링·재시도하는 워커 큐가 아닙니다. 워커 패턴에는 SQS가 적합합니다. 역시 기본 서버 SPOF가 남습니다.</p><p><strong>암기 트리거</strong>: '분산 워커 + 가변 부하' → <strong>SQS + ASG (queue depth 기반 dynamic scaling)</strong>.</p>"
+  },
+  {
+    id: "q12",
+    num: 12,
+    domain: 2,                                 // 1=Resilient, 2=Performance, 3=Secure, 4=Cost
+    topic: "CloudFront 다중 오리진 (S3 + ALB)",
+    body: "글로벌 기업이 Amazon EC2 인스턴스에 웹 애플리케이션을 호스팅하고 있으며, ALB를 사용합니다. 이 앱은 정적 데이터와 동적 데이터를 모두 포함하고, 정적 데이터는 Amazon S3 버킷에 저장됩니다. 기업은 정적/동적 데이터 성능을 향상시키고 지연 시간을 줄이고자 합니다. 또한 Route 53에 등록된 자체 도메인 이름을 사용 중입니다. 솔루션 아키텍트는 어떤 조치를 취해야 할까요?",
+    options: [
+      { k: "A", v: "S3 버킷과 ALB를 오리진으로 하는 Amazon CloudFront 배포를 생성합니다. Route 53을 구성하여 트래픽을 CloudFront 배포로 라우팅합니다." },
+      { k: "B", v: "ALB를 오리진으로 하는 CloudFront 배포를 생성합니다. S3 버킷을 엔드포인트로 하는 AWS Global Accelerator 표준 가속기를 생성합니다. Route 53을 구성하여 트래픽을 CloudFront 배포로 라우팅합니다." },
+      { k: "C", v: "S3 버킷을 오리진으로 하는 CloudFront 배포를 생성합니다. ALB와 CloudFront 배포를 엔드포인트로 하는 AWS Global Accelerator 표준 가속기를 생성합니다. 가속기 DNS 이름을 가리키는 사용자 지정 도메인 이름을 생성합니다. 웹 앱의 엔드포인트로 사용자 지정 도메인 이름을 사용합니다." },
+      { k: "D", v: "ALB를 오리진으로 하는 CloudFront 배포를 생성합니다. S3 버킷을 엔드포인트로 하는 AWS Global Accelerator 표준 가속기를 생성합니다. 두 개의 도메인 이름을 생성합니다. 하나는 동적 콘텐츠용 CloudFront DNS 이름으로, 다른 하나는 정적 콘텐츠용 가속기 DNS 이름으로 연결합니다. 생성된 도메인 이름을 웹 앱의 엔드포인트로 사용합니다." }
+    ],
+    correct: "A",
+    picked: "",
+    explain: "<p><strong>핵심</strong>: 글로벌 사용자에게 정적(S3) + 동적(ALB) 콘텐츠를 모두 저지연으로 전달하는 문제. 정답은 <strong>CloudFront 단일 배포에 오리진 2개를 매달고, 경로 패턴(path pattern)으로 분기</strong>하는 것. Route 53 alias → CloudFront 한 방이면 끝납니다.</p><p><strong>A가 정답인 이유</strong>: CloudFront는 <em>multi-origin</em>을 공식 지원합니다. 예: <code>/static/*</code>은 S3 오리진, 그 외는 ALB 오리진. 정적은 엣지 캐싱으로 레이턴시 절감, 동적은 CloudFront가 <strong>AWS 백본 네트워크</strong>로 오리진까지 라우팅해 TCP/TLS 종료를 엣지에서 수행하므로 일반 인터넷 경로 대비 빠릅니다. 운영·비용·구성 모두 가장 단순합니다.</p><p><strong>CloudFront vs Global Accelerator 구분</strong>: CloudFront = <strong>HTTP(S) 캐시 + 동적 가속</strong> (L7, 웹 콘텐츠). Global Accelerator = <strong>정적 Anycast IP로 TCP/UDP 가속</strong> (L4, 비-HTTP/게임/실시간). 웹 앱에는 <strong>CloudFront가 기본</strong>입니다.</p><p><strong>B가 오답인 이유</strong>: S3를 Global Accelerator 엔드포인트로? Global Accelerator는 ALB/NLB/EC2/EIP만 엔드포인트로 받습니다. <strong>S3는 Global Accelerator 엔드포인트가 될 수 없음</strong>. 구성 자체가 성립 안 함.</p><p><strong>C가 오답인 이유</strong>: CloudFront 앞에 Global Accelerator를 씌우는 건 <strong>의미 없는 중복</strong>입니다. CloudFront는 이미 엣지에서 Anycast로 트래픽을 받고 있어서, 앞단에 GA를 또 얹어봐야 오히려 홉만 늘어나고 비용·지연이 증가합니다.</p><p><strong>D가 오답인 이유</strong>: B와 같은 문제(S3는 GA 엔드포인트 불가) + 도메인을 둘로 쪼개는 것은 요구(단일 자체 도메인 사용)와 어긋나고 운영 복잡도만 키웁니다.</p><p><strong>암기 트리거</strong>: '정적 + 동적 + 글로벌 웹' → <strong>CloudFront multi-origin (S3 + ALB)</strong>. Route 53 alias로 연결. <em>Global Accelerator는 L4 TCP/UDP 워크로드 전용</em>으로 기억하기.</p>"
   }
 ];
 // ============================================================
