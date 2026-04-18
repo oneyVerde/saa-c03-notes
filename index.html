@@ -40,6 +40,22 @@ window.QUESTIONS = [
     correct: "A",
     picked: "",
     explain: "<p><strong>aws:PrincipalOrgID</strong>는 요청자의 AWS 계정이 지정된 Organization에 속해 있는지를 검증하는 전역 조건 키입니다. 조직 ID 하나만 참조하면 되므로 <strong>운영 오버헤드가 최소</strong>이며, 조직에 계정이 추가/제거되어도 정책을 수정할 필요가 없습니다.</p><p><strong>B (PrincipalOrgPaths)</strong>는 특정 OU 경로까지 한정하고 싶을 때 쓰는 키입니다. '조직 전체'를 허용하려는 본 요구에는 과도하게 복잡합니다.</p><p><strong>C (CloudTrail 모니터링 후 정책 업데이트)</strong>는 계정 변경이 있을 때마다 버킷 정책을 갱신해야 하므로 운영 오버헤드가 가장 큽니다.</p><p><strong>D (사용자 태그 + PrincipalTag)</strong>는 모든 사용자에게 태그를 관리해야 하므로 역시 오버헤드가 큽니다.</p><p><strong>키 포인트</strong>: '조직 전체 허용 + 운영 오버헤드 최소' → <strong>aws:PrincipalOrgID</strong>가 정답 트리거.</p>"
+  },
+  {
+    id: "q8",
+    num: 8,
+    domain: 1,                                 // 1=Resilient, 2=Performance, 3=Secure, 4=Cost
+    topic: "SQS + EC2 Auto Scaling (큐 기반 스케일링)",
+    body: "한 회사가 분산 애플리케이션을 AWS로 마이그레이션하고 있습니다. 이 애플리케이션은 가변적인 워크로드를 처리합니다. 기존 플랫폼은 여러 컴퓨팅 노드에 걸쳐 작업을 조정하는 기본 서버로 구성되어 있습니다. 회사는 복원력과 확장성을 극대화하는 솔루션으로 애플리케이션을 현대화하고자 합니다. 솔루션 아키텍트는 이러한 요구 사항을 충족하는 아키텍처를 어떻게 설계해야 할까요?",
+    options: [
+      { k: "A", v: "작업 대상으로 Amazon SQS 큐를 구성합니다. Auto Scaling 그룹의 EC2 인스턴스로 컴퓨팅 노드를 구현합니다. 예약된 스케일링(scheduled scaling)을 사용하도록 EC2 Auto Scaling을 구성합니다." },
+      { k: "B", v: "작업 대상으로 Amazon SQS 큐를 구성합니다. Auto Scaling 그룹의 EC2 인스턴스로 컴퓨팅 노드를 구현합니다. 큐 크기(queue size)에 따라 EC2 Auto Scaling을 구성합니다." },
+      { k: "C", v: "Auto Scaling 그룹의 EC2 인스턴스로 기본 서버와 컴퓨팅 노드를 구현합니다. 작업 대상으로 AWS CloudTrail을 구성합니다. 기본 서버의 부하에 따라 EC2 Auto Scaling을 구성합니다." },
+      { k: "D", v: "Auto Scaling 그룹의 EC2 인스턴스로 기본 서버와 컴퓨팅 노드를 구현합니다. Amazon EventBridge(CloudWatch Events)를 작업 대상으로 구성합니다. 컴퓨팅 노드의 부하에 따라 EC2 Auto Scaling을 구성합니다." }
+    ],
+    correct: "B",
+    picked: "",
+    explain: "<p><strong>핵심 패턴</strong>: '기본 서버(primary/dispatcher) → 여러 컴퓨팅 노드'로 작업을 분산하는 구조는 AWS에서 <strong>SQS + Auto Scaling Group</strong>으로 현대화하는 것이 정석입니다. 기본 서버라는 SPOF(단일 장애점)를 제거하고 큐가 작업을 보관·완충합니다.</p><p><strong>B가 정답인 이유</strong>: 워크로드가 <em>가변적</em>(variable)이므로 스케일링 기준도 동적이어야 합니다. CloudWatch의 <code>ApproximateNumberOfMessagesVisible</code> 또는 <strong>backlog per instance</strong> 지표 기반 <em>target tracking</em> 스케일링을 걸면, 큐에 쌓인 양만큼 컴퓨팅 노드가 자동으로 늘고 줄어 복원력·확장성이 모두 극대화됩니다.</p><p><strong>A가 오답인 이유</strong>: <strong>Scheduled scaling</strong>은 '매일 9시에 +5대'처럼 <em>예측 가능한 패턴</em>에만 적합합니다. 가변 워크로드에는 부족하거나 낭비가 발생합니다.</p><p><strong>C가 오답인 이유</strong>: <strong>CloudTrail</strong>은 API 호출 감사 로그 서비스이지 작업 큐가 아닙니다. 'work target'으로 쓸 수 없습니다. 또한 기본 서버를 그대로 두면 SPOF가 남아 복원력 요구를 충족하지 못합니다.</p><p><strong>D가 오답인 이유</strong>: EventBridge는 이벤트 라우팅용이지 일감을 버퍼링·재시도하는 워커 큐가 아닙니다. 워커 패턴에는 SQS가 적합합니다. 역시 기본 서버 SPOF가 남습니다.</p><p><strong>암기 트리거</strong>: '분산 워커 + 가변 부하' → <strong>SQS + ASG (queue depth 기반 dynamic scaling)</strong>.</p>"
   }
 ];
 // ============================================================
