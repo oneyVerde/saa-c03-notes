@@ -188,12 +188,27 @@ window.QUESTIONS = [
   .modal .q-text { background: var(--bg-elev-2); padding: 20px; border-left: 3px solid var(--accent); margin-bottom: 20px; font-size: 13px; line-height: 1.7; }
   .modal h4 { font-family: var(--serif); font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: var(--accent-3); }
   .modal .options { display: flex; flex-direction: column; gap: 6px; }
-  .modal .opt { padding: 12px 14px; border: 1px solid var(--line); font-size: 13px; line-height: 1.5; display: flex; gap: 12px; }
+  .modal .opt { padding: 12px 14px; border: 1px solid var(--line); font-size: 13px; line-height: 1.5; display: flex; gap: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .modal .opt:hover { border-color: var(--ink-dim); background: rgba(255,255,255,0.02); }
   .modal .opt .letter { font-family: var(--serif); font-weight: 900; color: var(--ink-faint); width: 20px; font-size: 16px; }
-  .modal .opt.correct { border-color: var(--accent-2); background: rgba(0,212,168,0.06); }
+  .modal .opt.picked { border-color: var(--accent); background: rgba(255,107,53,0.06); }
+  .modal .opt.picked .letter { color: var(--accent); }
+  .modal .opt.correct { border-color: var(--accent-2); background: rgba(0,212,168,0.06); cursor: default; }
   .modal .opt.correct .letter { color: var(--accent-2); }
-  .modal .opt.picked-wrong { border-color: var(--danger); background: rgba(255,62,95,0.06); }
+  .modal .opt.picked-wrong { border-color: var(--danger); background: rgba(255,62,95,0.06); cursor: default; }
   .modal .opt.picked-wrong .letter { color: var(--danger); }
+  .modal .opt.revealed { cursor: default; }
+  .modal .opt.revealed:hover { background: inherit; }
+
+  .pill.quiz { border-color: var(--accent-2); color: var(--accent-2); }
+  .qhint { font-size: 11px; color: var(--ink-faint); font-style: italic; font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 8px; }
+
+  .reveal-btn { display: block; width: 100%; margin: 24px 0 8px; padding: 16px 20px; background: linear-gradient(135deg, rgba(0,212,168,0.08), rgba(255,210,63,0.05)); border: 1px dashed var(--accent-2); color: var(--accent-2); font-family: var(--serif); font-size: 16px; font-weight: 600; font-style: italic; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s; border-radius: 2px; }
+  .reveal-btn:hover { background: var(--accent-2); color: var(--bg); border-style: solid; }
+  .reveal-btn .sub { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; font-style: normal; margin-top: 4px; opacity: 0.7; }
+
+  .retry-btn { display: inline-block; margin: 16px 0 4px; padding: 7px 14px; background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim); font-family: inherit; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+  .retry-btn:hover { color: var(--accent); border-color: var(--accent); }
   .modal .explain { background: var(--bg-elev-2); padding: 20px; font-size: 13px; line-height: 1.7; border-top: 2px solid var(--accent-3); }
   .modal .explain p { margin-bottom: 10px; }
   .modal .explain strong { color: var(--accent-3); }
@@ -462,33 +477,61 @@ window.QUESTIONS = [
     }).join('');
   }
 
+  let modalState = null;
+
   function openDetail(id) {
     const q = getQuestions().find(x => x.id === id);
     if (!q) return;
-    const reviews = reviewCounts[id] || 0;
+    // 모달 열 때는 항상 quiz mode로 시작 (답/해설 숨김)
+    modalState = { q, revealed: false, userPick: '' };
+    renderModal();
+    document.getElementById('modal-detail').classList.add('open');
+  }
+
+  function renderModal() {
+    if (!modalState) return;
+    const { q, revealed, userPick } = modalState;
+    const reviews = reviewCounts[q.id] || 0;
+    const note = notes[q.id] || '';
+
     document.getElementById('modal-content').innerHTML = `
       <button class="close" onclick="closeDetail()">×</button>
       <h3>#${String(q.num).padStart(2,'0')} · ${q.topic}</h3>
       <div class="qmeta-big">
         <span class="pill hot">Domain ${q.domain} · ${DOMAINS[q.domain].name}</span>
-        ${q.picked ? `<span class="pill">내가 고른 답: ${q.picked}</span>` : ''}
-        <span class="pill ok">정답: ${q.correct}</span>
+        ${revealed
+          ? `${q.picked ? `<span class="pill">원래 고른 답: ${q.picked}</span>` : ''}<span class="pill ok">정답: ${q.correct}</span>`
+          : `<span class="pill quiz">Quiz Mode · 답 숨김</span>`
+        }
       </div>
       <div class="q-text">${q.body || '(본문 없음)'}</div>
-      ${q.options && q.options.length ? `<h4>◆ Options</h4><div class="options">${q.options.map(o => {
-        let cls = '';
-        if (o.k === q.correct) cls = 'correct';
-        else if (o.k === q.picked) cls = 'picked-wrong';
-        return `<div class="opt ${cls}"><span class="letter">${o.k}</span><span>${o.v}</span></div>`;
-      }).join('')}</div>` : ''}
-      ${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
+      ${q.options && q.options.length ? `
+        <h4>◆ Options${revealed ? '' : '<span class="qhint">— 클릭해서 답을 고른 뒤 아래 버튼으로 확인</span>'}</h4>
+        <div class="options">${q.options.map(o => {
+          let cls = '';
+          if (revealed) {
+            cls = 'revealed';
+            if (o.k === q.correct) cls += ' correct';
+            else if (o.k === userPick) cls += ' picked-wrong';
+          } else if (o.k === userPick) {
+            cls = 'picked';
+          }
+          const handler = revealed ? '' : `onclick="pickOption('${o.k}')"`;
+          return `<div class="opt ${cls}" ${handler}><span class="letter">${o.k}</span><span>${o.v}</span></div>`;
+        }).join('')}</div>
+      ` : ''}
+      ${revealed
+        ? `${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
+           <button class="retry-btn" onclick="resetQuiz()">↻ 다시 풀기 (답 다시 숨기기)</button>`
+        : `<button class="reveal-btn" onclick="revealAnswer()">◆ 정답 &amp; 해설 보기<span class="sub">Show Answer</span></button>`
+      }
       <div class="memo-section">
         <div class="memo-header">
           <span class="label">◆ My Notes</span>
           <span class="hint">(이 기기에만 저장)</span>
           <span class="memo-status" id="memo-status"></span>
         </div>
-        <textarea class="memo-box" placeholder="여기에 나만의 메모를 간략히 적어두세요..." oninput="saveNote('${q.id}', this.value)">${escapeHtml(notes[q.id] || '')}</textarea>
+        <textarea class="memo-box" placeholder="여기에 나만의 메모를 간략히 적어두세요..." oninput="saveNote('${q.id}', this.value)">${escapeHtml(note)}</textarea>
       </div>
       <div class="review-tracker">
         <span class="label">Reviewed</span>
@@ -496,9 +539,35 @@ window.QUESTIONS = [
         <span class="label">times</span>
         <button class="review-btn" onclick="addReview('${q.id}')">+ Mark Reviewed</button>
       </div>`;
-    document.getElementById('modal-detail').classList.add('open');
   }
-  function closeDetail() { document.getElementById('modal-detail').classList.remove('open'); }
+
+  function pickOption(letter) {
+    if (!modalState || modalState.revealed) return;
+    // 같은 옵션 두 번 클릭하면 선택 해제
+    modalState.userPick = (modalState.userPick === letter) ? '' : letter;
+    renderModal();
+  }
+
+  function revealAnswer() {
+    if (!modalState) return;
+    modalState.revealed = true;
+    renderModal();
+  }
+
+  function resetQuiz() {
+    if (!modalState) return;
+    modalState.revealed = false;
+    modalState.userPick = '';
+    renderModal();
+    // 스크롤을 모달 상단으로
+    const modal = document.getElementById('modal-content');
+    if (modal) modal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function closeDetail() {
+    modalState = null;
+    document.getElementById('modal-detail').classList.remove('open');
+  }
 
   function addReview(id) {
     reviewCounts[id] = (reviewCounts[id] || 0) + 1;
