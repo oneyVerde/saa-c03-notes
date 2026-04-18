@@ -188,6 +188,16 @@ window.QUESTIONS = [
   .review-btn { background: transparent; border: 1px solid var(--accent-3); color: var(--accent-3); font-size: 10px; padding: 6px 12px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: inherit; margin-left: auto; }
   .review-btn:hover { background: var(--accent-3); color: var(--bg); }
 
+  .memo-section { margin-top: 24px; padding-top: 20px; border-top: 1px dashed var(--line); }
+  .memo-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .memo-header .label { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--accent-2); }
+  .memo-header .hint { font-size: 10px; color: var(--ink-faint); letter-spacing: 0.08em; text-transform: uppercase; }
+  .memo-header .memo-status { margin-left: auto; font-size: 10px; color: var(--ink-faint); font-style: italic; transition: color 0.2s; }
+  .memo-header .memo-status.saved { color: var(--accent-2); }
+  .memo-box { width: 100%; min-height: 90px; background: var(--bg-elev-2); border: 1px solid var(--line); color: var(--ink); font-family: var(--mono); font-size: 12px; line-height: 1.7; padding: 12px 14px; resize: vertical; border-radius: 2px; transition: border-color 0.15s; }
+  .memo-box:focus { outline: none; border-color: var(--accent-2); }
+  .memo-box::placeholder { color: var(--ink-faint); font-style: italic; }
+
   .insight { background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.05)); border: 1px solid var(--line-strong); border-left: 3px solid var(--accent); padding: 20px 24px; margin-bottom: 24px; }
   .insight .label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
   .insight .msg { font-family: var(--serif); font-size: 18px; font-style: italic; color: var(--ink); letter-spacing: -0.01em; line-height: 1.4; }
@@ -205,7 +215,7 @@ window.QUESTIONS = [
     <div class="brand-block">
       <div class="eyebrow"><span class="dot"></span>SAA-C03 / WRONG-ANSWER JOURNAL</div>
       <h1>오답 <em>노트</em></h1>
-      <p class="sub">틀린 문제를 도메인별로 누적해 약점을 드러낸다. Claude가 스크린샷을 읽어 분류하고, 이 HTML이 곧 데이터베이스다.</p>
+      <p class="sub">틀린 문제를 도메인별로 누적해 약점을 드러낸다. Claude가 스크린샷을 읽어 분류한다.</p>
     </div>
     <div class="meta-stack">
       <div class="stat">
@@ -287,6 +297,34 @@ window.QUESTIONS = [
   const REVIEW_KEY = 'saa_review_counts_v1';
   let reviewCounts = {};
   try { reviewCounts = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}'); } catch(e) {}
+
+  const NOTES_KEY = 'saa_notes_v1';
+  let notes = {};
+  try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch(e) {}
+
+  function escapeHtml(s) {
+    return (s == null ? '' : String(s))
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  let saveNoteTimer = null;
+  function saveNote(id, value) {
+    notes[id] = value;
+    const status = document.getElementById('memo-status');
+    if (status) { status.textContent = '저장 중...'; status.classList.remove('saved'); }
+    if (saveNoteTimer) clearTimeout(saveNoteTimer);
+    saveNoteTimer = setTimeout(() => {
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      if (status) {
+        status.textContent = '✓ 저장됨';
+        status.classList.add('saved');
+        setTimeout(() => {
+          if (status && status.textContent === '✓ 저장됨') status.textContent = '';
+        }, 1500);
+      }
+    }, 400);
+  }
 
   let chart = null;
   let currentFilter = 'all';
@@ -428,6 +466,14 @@ window.QUESTIONS = [
         return `<div class="opt ${cls}"><span class="letter">${o.k}</span><span>${o.v}</span></div>`;
       }).join('')}</div>` : ''}
       ${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
+      <div class="memo-section">
+        <div class="memo-header">
+          <span class="label">◆ My Notes</span>
+          <span class="hint">(이 기기에만 저장)</span>
+          <span class="memo-status" id="memo-status"></span>
+        </div>
+        <textarea class="memo-box" placeholder="여기에 나만의 메모를 간략히 적어두세요..." oninput="saveNote('${q.id}', this.value)">${escapeHtml(notes[q.id] || '')}</textarea>
+      </div>
       <div class="review-tracker">
         <span class="label">Reviewed</span>
         <span class="count" id="review-count">${reviews}</span>
