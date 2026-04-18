@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAA-C03 오답 노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<!--
+╔══════════════════════════════════════════════════════════════════════╗
+║  SAA-C03 WRONG-ANSWER JOURNAL                                        ║
+║                                                                      ║
+║  데이터는 아래 <script id="data"> 블록에만 있습니다.                 ║
+║  새 문제를 추가하려면 QUESTIONS 배열에 객체를 하나 더 넣으세요.      ║
+║  Claude가 web_fetch로 이 HTML을 읽으면 전체 데이터를 파악합니다.     ║
+╚══════════════════════════════════════════════════════════════════════╝
+-->
+
+<script id="data">
+// ============================================================
+// DATABASE — 이 배열이 유일한 데이터 소스입니다.
+// 새 문제를 추가할 때는 아래 형식을 그대로 따르세요.
+// ============================================================
+window.QUESTIONS = [
+  {
+    id: "q3",
+    num: 3,
+    domain: 3,                                 // 1=Resilient, 2=Performance, 3=Secure, 4=Cost
+    topic: "S3 버킷 정책 + AWS Organizations",
+    body: "한 회사가 AWS Organizations를 사용하여 여러 부서의 AWS 계정을 관리하고 있습니다. 관리 계정에는 프로젝트 보고서가 저장된 Amazon S3 버킷이 있습니다. 이 회사는 AWS Organizations 내 조직 계정 사용자만 해당 S3 버킷에 접근할 수 있도록 접근 권한을 제한하고자 합니다. 운영 오버헤드를 최소화하는 솔루션은?",
+    options: [
+      { k: "A", v: "조직 ID를 참조하는 aws:PrincipalOrgID 전역 조건 키를 S3 버킷 정책에 추가합니다." },
+      { k: "B", v: "각 부서별로 조직 단위(OU)를 생성하고, S3 버킷 정책에 aws:PrincipalOrgPaths 전역 조건 키를 추가합니다." },
+      { k: "C", v: "AWS CloudTrail을 사용하여 계정 생성/초대/탈퇴/삭제 이벤트를 모니터링하고, S3 버킷 정책을 accordingly 업데이트합니다." },
+      { k: "D", v: "S3 버킷에 접근해야 하는 각 사용자에게 태그를 지정하고, S3 버킷 정책에 aws:PrincipalTag 전역 조건 키를 추가합니다." }
+    ],
+    correct: "A",
+    picked: "",
+    explain: "<p><strong>aws:PrincipalOrgID</strong>는 요청자의 AWS 계정이 지정된 Organization에 속해 있는지를 검증하는 전역 조건 키입니다. 조직 ID 하나만 참조하면 되므로 <strong>운영 오버헤드가 최소</strong>이며, 조직에 계정이 추가/제거되어도 정책을 수정할 필요가 없습니다.</p><p><strong>B (PrincipalOrgPaths)</strong>는 특정 OU 경로까지 한정하고 싶을 때 쓰는 키입니다. '조직 전체'를 허용하려는 본 요구에는 과도하게 복잡합니다.</p><p><strong>C (CloudTrail 모니터링 후 정책 업데이트)</strong>는 계정 변경이 있을 때마다 버킷 정책을 갱신해야 하므로 운영 오버헤드가 가장 큽니다.</p><p><strong>D (사용자 태그 + PrincipalTag)</strong>는 모든 사용자에게 태그를 관리해야 하므로 역시 오버헤드가 큽니다.</p><p><strong>키 포인트</strong>: '조직 전체 허용 + 운영 오버헤드 최소' → <strong>aws:PrincipalOrgID</strong>가 정답 트리거.</p>"
+  }
+];
+// ============================================================
+</script>
+
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-elev: #111827;
+    --bg-elev-2: #1a2030;
+    --ink: #e8ecf5;
+    --ink-dim: #8892a6;
+    --ink-faint: #4a5268;
+    --accent: #ff6b35;
+    --accent-2: #00d4a8;
+    --accent-3: #ffd23f;
+    --danger: #ff3e5f;
+    --line: #212838;
+    --line-strong: #303a52;
+    --grid: rgba(255,255,255,0.04);
+    --serif: 'Fraunces', Georgia, serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(255,107,53,0.08), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(0,212,168,0.06), transparent 45%);
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 48px 32px 120px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--line); padding-bottom: 24px; margin-bottom: 48px; flex-wrap: wrap; gap: 24px; }
+  .brand-block { flex: 1 1 auto; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .eyebrow .dot { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; vertical-align: middle; }
+  @keyframes pulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,107,53,0.6);} 50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(255,107,53,0);} }
+  h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(40px, 6vw, 72px); line-height: 0.95; letter-spacing: -0.03em; font-variation-settings: "opsz" 144; }
+  h1 em { font-style: italic; font-weight: 400; color: var(--accent); font-variation-settings: "opsz" 144, "wght" 400; }
+  .sub { color: var(--ink-dim); font-size: 13px; margin-top: 8px; max-width: 560px; }
+  .meta-stack { display: flex; gap: 24px; align-items: flex-end; }
+  .stat { text-align: right; }
+  .stat .num { font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .stat .num.accent { color: var(--accent); }
+  .stat .num.mint { color: var(--accent-2); }
+  .stat .lbl { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); margin-top: 6px; }
+
+  .grid-main { display: grid; grid-template-columns: 1fr 420px; gap: 48px; }
+  @media (max-width: 1024px) { .grid-main { grid-template-columns: 1fr; } }
+
+  section { margin-bottom: 56px; }
+  .section-title { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+  .section-title .num { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.1em; }
+  .section-title h2 { font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  .section-title .line { flex: 1; height: 1px; background: var(--line); }
+
+  .card { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 2px; padding: 24px; position: relative; }
+  .card.glow { border-color: var(--line-strong); box-shadow: 0 0 0 1px rgba(255,107,53,0.1) inset, 0 20px 60px -20px rgba(0,0,0,0.8); }
+
+  #chart-wrap { position: relative; height: 360px; padding: 8px; }
+  .chart-legend { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--line); }
+  .legend-row { display: grid; grid-template-columns: 16px 1fr auto auto; align-items: center; gap: 10px; font-size: 12px; }
+  .legend-row .swatch { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-row .name { color: var(--ink); }
+  .legend-row .pct { color: var(--ink-dim); }
+  .legend-row .cnt { color: var(--ink-faint); font-size: 11px; }
+
+  .filterbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .chip { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 7px 12px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-dim); cursor: pointer; transition: all 0.15s; border-radius: 1px; font-family: inherit; }
+  .chip:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #0a0e1a; font-weight: 600; }
+
+  .qlist { display: flex; flex-direction: column; gap: 2px; }
+  .qitem { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; padding: 18px 20px; background: var(--bg-elev); border: 1px solid var(--line); cursor: pointer; transition: all 0.15s; gap: 16px; }
+  .qitem:hover { border-color: var(--accent); background: var(--bg-elev-2); }
+  .qitem .qnum { font-family: var(--serif); font-size: 28px; font-weight: 600; color: var(--ink-faint); font-variation-settings: "opsz" 144; }
+  .qitem .qbody .qtitle { font-family: var(--serif); font-size: 16px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.01em; color: var(--ink); }
+  .qitem .qbody .qmeta { display: flex; gap: 12px; align-items: center; font-size: 11px; color: var(--ink-dim); letter-spacing: 0.04em; }
+  .qitem .qbody .qmeta .tag { color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
+  .qitem .qbody .qmeta .sep { color: var(--line-strong); }
+  .qitem .answers { text-align: right; font-size: 11px; color: var(--ink-dim); }
+  .qitem .answers .wrong { color: var(--danger); }
+  .qitem .answers .right { color: var(--accent-2); }
+
+  .empty { padding: 48px 32px; text-align: center; border: 1px dashed var(--line-strong); color: var(--ink-dim); }
+  .empty h3 { font-family: var(--serif); font-size: 22px; color: var(--ink); margin-bottom: 8px; font-style: italic; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(5,8,15,0.85); backdrop-filter: blur(8px); z-index: 100; display: none; align-items: flex-start; justify-content: center; padding: 40px 20px; overflow-y: auto; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: var(--bg-elev); border: 1px solid var(--line-strong); max-width: 820px; width: 100%; padding: 40px; position: relative; border-radius: 2px; }
+  .modal .close { position: absolute; top: 16px; right: 16px; background: none; border: 1px solid var(--line); color: var(--ink-dim); width: 36px; height: 36px; cursor: pointer; font-size: 18px; font-family: inherit; }
+  .modal .close:hover { color: var(--accent); border-color: var(--accent); }
+  .modal h3 { font-family: var(--serif); font-size: 32px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .modal .qmeta-big { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  .pill { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border: 1px solid var(--line-strong); color: var(--ink-dim); }
+  .pill.hot { border-color: var(--accent); color: var(--accent); }
+  .pill.ok { border-color: var(--accent-2); color: var(--accent-2); }
+  .modal .q-text { background: var(--bg-elev-2); padding: 20px; border-left: 3px solid var(--accent); margin-bottom: 20px; font-size: 13px; line-height: 1.7; }
+  .modal h4 { font-family: var(--serif); font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: var(--accent-3); }
+  .modal .options { display: flex; flex-direction: column; gap: 6px; }
+  .modal .opt { padding: 12px 14px; border: 1px solid var(--line); font-size: 13px; line-height: 1.5; display: flex; gap: 12px; }
+  .modal .opt .letter { font-family: var(--serif); font-weight: 900; color: var(--ink-faint); width: 20px; font-size: 16px; }
+  .modal .opt.correct { border-color: var(--accent-2); background: rgba(0,212,168,0.06); }
+  .modal .opt.correct .letter { color: var(--accent-2); }
+  .modal .opt.picked-wrong { border-color: var(--danger); background: rgba(255,62,95,0.06); }
+  .modal .opt.picked-wrong .letter { color: var(--danger); }
+  .modal .explain { background: var(--bg-elev-2); padding: 20px; font-size: 13px; line-height: 1.7; border-top: 2px solid var(--accent-3); }
+  .modal .explain p { margin-bottom: 10px; }
+  .modal .explain strong { color: var(--accent-3); }
+
+  .review-tracker { margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--line); display: flex; align-items: center; gap: 12px; }
+  .review-tracker .label { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .review-tracker .count { font-family: var(--serif); font-size: 20px; color: var(--accent-3); font-weight: 600; }
+  .review-btn { background: transparent; border: 1px solid var(--accent-3); color: var(--accent-3); font-size: 10px; padding: 6px 12px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; font-family: inherit; margin-left: auto; }
+  .review-btn:hover { background: var(--accent-3); color: var(--bg); }
+
+  .insight { background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,210,63,0.05)); border: 1px solid var(--line-strong); border-left: 3px solid var(--accent); padding: 20px 24px; margin-bottom: 24px; }
+  .insight .label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .insight .msg { font-family: var(--serif); font-size: 18px; font-style: italic; color: var(--ink); letter-spacing: -0.01em; line-height: 1.4; }
+
+  .asterisk { position: absolute; font-family: var(--serif); font-style: italic; color: var(--accent); pointer-events: none; user-select: none; }
+
+  .footer-note { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-faint); letter-spacing: 0.05em; line-height: 1.7; }
+  .footer-note code { background: var(--bg-elev); padding: 2px 6px; color: var(--accent-2); font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand-block">
+      <div class="eyebrow"><span class="dot"></span>SAA-C03 / WRONG-ANSWER JOURNAL</div>
+      <h1>오답 <em>노트</em></h1>
+      <p class="sub">틀린 문제를 도메인별로 누적해 약점을 드러낸다. Claude가 스크린샷을 읽어 분류하고, 이 HTML이 곧 데이터베이스다.</p>
+    </div>
+    <div class="meta-stack">
+      <div class="stat">
+        <div class="num accent" id="stat-total">0</div>
+        <div class="lbl">Total Wrong</div>
+      </div>
+      <div class="stat">
+        <div class="num mint" id="stat-domains">0</div>
+        <div class="lbl">Domains Hit</div>
+      </div>
+    </div>
+  </header>
+
+  <div id="insight-box"></div>
+
+  <div class="grid-main">
+    <div>
+      <section>
+        <div class="section-title">
+          <span class="num">§01</span>
+          <h2>Wrong Answers</h2>
+          <div class="line"></div>
+        </div>
+        <div class="filterbar" id="filterbar">
+          <button class="chip active" data-filter="all">All</button>
+          <button class="chip" data-filter="1">Domain 1 · Resilient</button>
+          <button class="chip" data-filter="2">Domain 2 · Performance</button>
+          <button class="chip" data-filter="3">Domain 3 · Secure</button>
+          <button class="chip" data-filter="4">Domain 4 · Cost</button>
+        </div>
+        <div class="qlist" id="qlist"></div>
+      </section>
+    </div>
+
+    <div>
+      <section>
+        <div class="section-title">
+          <span class="num">§02</span>
+          <h2>Weak Spots</h2>
+          <div class="line"></div>
+        </div>
+        <div class="card glow" style="position: relative;">
+          <span class="asterisk" style="top: 12px; right: 18px; font-size: 32px;">*</span>
+          <div id="chart-wrap"><canvas id="domain-chart"></canvas></div>
+          <div class="chart-legend" id="chart-legend"></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">
+          <span class="num">§03</span>
+          <h2>Topic Frequency</h2>
+          <div class="line"></div>
+        </div>
+        <div class="card"><div id="topic-list"></div></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    ◆ 이 사이트는 정적 HTML 파일 하나입니다. 문제 데이터는 HTML 상단의 <code>window.QUESTIONS</code> 배열에 저장되어 있습니다.<br>
+    ◆ 새 문제를 추가하려면 Claude에게 스크린샷을 보내고, 받은 업데이트된 HTML을 GitHub에 덮어쓰기만 하면 됩니다. Vercel이 자동 재배포합니다.<br>
+    ◆ 복습 횟수는 브라우저 <code>localStorage</code>에만 저장되며, 배포와 무관하게 기기별로 유지됩니다.
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-detail">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+  const DOMAINS = {
+    1: { name: 'Resilient Architectures', color: '#ff6b35' },
+    2: { name: 'High-Performing',         color: '#00d4a8' },
+    3: { name: 'Secure Architectures',    color: '#ffd23f' },
+    4: { name: 'Cost-Optimized',          color: '#a78bfa' },
+  };
+
+  const REVIEW_KEY = 'saa_review_counts_v1';
+  let reviewCounts = {};
+  try { reviewCounts = JSON.parse(localStorage.getItem(REVIEW_KEY) || '{}'); } catch(e) {}
+
+  let chart = null;
+  let currentFilter = 'all';
+
+  function getQuestions() {
+    return (window.QUESTIONS || []).slice().sort((a,b) => (a.num||0) - (b.num||0));
+  }
+
+  function render() {
+    const qs = getQuestions();
+    document.getElementById('stat-total').textContent = qs.length;
+    document.getElementById('stat-domains').textContent = new Set(qs.map(q => q.domain)).size;
+    renderInsight(qs);
+    renderList(qs);
+    renderChart(qs);
+    renderTopics(qs);
+  }
+
+  function renderInsight(qs) {
+    const box = document.getElementById('insight-box');
+    const n = qs.length;
+    if (n === 0) { box.innerHTML = ''; return; }
+    const counts = {1:0,2:0,3:0,4:0};
+    qs.forEach(q => counts[q.domain]++);
+    let maxD = 1, maxV = 0;
+    for (const d in counts) if (counts[d] > maxV) { maxV = counts[d]; maxD = d; }
+    const pct = Math.round((maxV / n) * 100);
+    let msg;
+    if (n < 3) {
+      msg = `데이터가 아직 적습니다 (n=${n}). 3개 이상 누적되면 패턴이 드러납니다.`;
+    } else {
+      msg = `전체 오답의 <strong style="color:var(--accent)">${pct}%</strong>가 <strong>Domain ${maxD} · ${DOMAINS[maxD].name}</strong>에 몰려 있습니다. 이 영역을 집중 복습할 타이밍입니다.`;
+    }
+    box.innerHTML = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">${msg}</div></div>`;
+  }
+
+  function renderList(qs) {
+    const wrap = document.getElementById('qlist');
+    let items = qs;
+    if (currentFilter !== 'all') items = items.filter(q => String(q.domain) === currentFilter);
+    if (items.length === 0) {
+      wrap.innerHTML = `<div class="empty"><h3>아직 비어 있습니다</h3><p>Claude에게 스크린샷을 보내서 문제를 추가하세요.</p></div>`;
+      return;
+    }
+    wrap.innerHTML = items.map(q => `
+      <div class="qitem" onclick="openDetail('${q.id}')">
+        <div class="qnum">#${String(q.num).padStart(2,'0')}</div>
+        <div class="qbody">
+          <div class="qtitle">${q.topic || '(주제 미지정)'}</div>
+          <div class="qmeta">
+            <span class="tag">D${q.domain} · ${DOMAINS[q.domain].name}</span>
+            <span class="sep">│</span>
+            <span>${(q.body || '').slice(0, 60)}${(q.body || '').length > 60 ? '…' : ''}</span>
+          </div>
+        </div>
+        <div class="answers">
+          <div>picked <span class="wrong">${q.picked || '—'}</span></div>
+          <div>answer <span class="right">${q.correct}</span></div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderChart(qs) {
+    const ctx = document.getElementById('domain-chart');
+    const counts = {1:0,2:0,3:0,4:0};
+    qs.forEach(q => counts[q.domain]++);
+    const data = {
+      labels: ['Resilient', 'Performance', 'Secure', 'Cost'],
+      datasets: [{
+        label: 'Wrong Answers',
+        data: [counts[1], counts[2], counts[3], counts[4]],
+        backgroundColor: 'rgba(255,107,53,0.15)',
+        borderColor: '#ff6b35',
+        borderWidth: 2,
+        pointBackgroundColor: ['#ff6b35','#00d4a8','#ffd23f','#a78bfa'],
+        pointBorderColor: '#0a0e1a',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 9,
+      }]
+    };
+    const maxVal = Math.max(3, ...Object.values(counts));
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'radar',
+      data,
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            min: 0, max: maxVal,
+            ticks: { stepSize: Math.max(1, Math.ceil(maxVal/4)), color: '#4a5268', backdropColor: 'transparent', font: { family: 'JetBrains Mono', size: 10 } },
+            grid: { color: 'rgba(255,255,255,0.08)' },
+            angleLines: { color: 'rgba(255,255,255,0.12)' },
+            pointLabels: { color: '#e8ecf5', font: { family: 'Fraunces', size: 13, weight: '600', style: 'italic' } }
+          }
+        }
+      }
+    });
+    const total = qs.length || 1;
+    document.getElementById('chart-legend').innerHTML = Object.keys(DOMAINS).map(d => {
+      const c = counts[d];
+      const pct = Math.round((c/total)*100);
+      return `<div class="legend-row"><span class="swatch" style="background:${DOMAINS[d].color}"></span><span class="name">D${d} · ${DOMAINS[d].name}</span><span class="pct">${pct}%</span><span class="cnt">${c}개</span></div>`;
+    }).join('');
+  }
+
+  function renderTopics(qs) {
+    const list = document.getElementById('topic-list');
+    if (qs.length === 0) { list.innerHTML = `<div style="color:var(--ink-faint); font-size:12px; text-align:center; padding:20px;">데이터 없음</div>`; return; }
+    const topics = {};
+    qs.forEach(q => { const t = q.topic || '미분류'; topics[t] = (topics[t]||0)+1; });
+    const entries = Object.entries(topics).sort((a,b) => b[1]-a[1]);
+    const max = entries[0][1];
+    list.innerHTML = entries.map(([t,c]) => {
+      const w = (c/max)*100;
+      return `<div style="margin-bottom:14px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span>${t}</span><span style="color:var(--ink-dim);">${c}</span></div><div style="height:3px; background:var(--line); position:relative;"><div style="position:absolute; left:0; top:0; height:100%; width:${w}%; background:linear-gradient(90deg, var(--accent), var(--accent-3));"></div></div></div>`;
+    }).join('');
+  }
+
+  function openDetail(id) {
+    const q = getQuestions().find(x => x.id === id);
+    if (!q) return;
+    const reviews = reviewCounts[id] || 0;
+    document.getElementById('modal-content').innerHTML = `
+      <button class="close" onclick="closeDetail()">×</button>
+      <h3>#${String(q.num).padStart(2,'0')} · ${q.topic}</h3>
+      <div class="qmeta-big">
+        <span class="pill hot">Domain ${q.domain} · ${DOMAINS[q.domain].name}</span>
+        ${q.picked ? `<span class="pill">내가 고른 답: ${q.picked}</span>` : ''}
+        <span class="pill ok">정답: ${q.correct}</span>
+      </div>
+      <div class="q-text">${q.body || '(본문 없음)'}</div>
+      ${q.options && q.options.length ? `<h4>◆ Options</h4><div class="options">${q.options.map(o => {
+        let cls = '';
+        if (o.k === q.correct) cls = 'correct';
+        else if (o.k === q.picked) cls = 'picked-wrong';
+        return `<div class="opt ${cls}"><span class="letter">${o.k}</span><span>${o.v}</span></div>`;
+      }).join('')}</div>` : ''}
+      ${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
+      <div class="review-tracker">
+        <span class="label">Reviewed</span>
+        <span class="count" id="review-count">${reviews}</span>
+        <span class="label">times</span>
+        <button class="review-btn" onclick="addReview('${q.id}')">+ Mark Reviewed</button>
+      </div>`;
+    document.getElementById('modal-detail').classList.add('open');
+  }
+  function closeDetail() { document.getElementById('modal-detail').classList.remove('open'); }
+
+  function addReview(id) {
+    reviewCounts[id] = (reviewCounts[id] || 0) + 1;
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(reviewCounts));
+    document.getElementById('review-count').textContent = reviewCounts[id];
+  }
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      renderList(getQuestions());
+    });
+  });
+
+  document.getElementById('modal-detail').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-detail') closeDetail();
+  });
+
+  render();
+</script>
+
+</body>
+</html>
