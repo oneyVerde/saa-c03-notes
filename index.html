@@ -187,9 +187,10 @@ window.QUESTIONS = [
   .chip.active { background: var(--accent); border-color: var(--accent); color: #0a0e1a; font-weight: 600; }
 
   .qlist { display: flex; flex-direction: column; gap: 2px; }
-  .qitem { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; padding: 18px 20px; background: var(--bg-elev); border: 1px solid var(--line); cursor: pointer; transition: all 0.15s; gap: 16px; }
+  .qitem { display: grid; grid-template-columns: 44px 1fr auto 40px; align-items: center; padding: 18px 20px; background: var(--bg-elev); border: 1px solid var(--line); cursor: pointer; transition: all 0.15s; gap: 16px; }
   .qitem:hover { border-color: var(--accent); background: var(--bg-elev-2); }
-  .qitem .qnum { font-family: var(--serif); font-size: 28px; font-weight: 600; color: var(--ink-faint); font-variation-settings: "opsz" 144; }
+  .qitem.bookmarked { border-left: 3px solid var(--accent-3); }
+  .qitem .qnum { font-family: var(--serif); font-size: 24px; font-weight: 600; color: var(--ink-faint); font-variation-settings: "opsz" 144; }
   .qitem .qbody .qtitle { font-family: var(--serif); font-size: 16px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.01em; color: var(--ink); }
   .qitem .qbody .qmeta { display: flex; gap: 12px; align-items: center; font-size: 11px; color: var(--ink-dim); letter-spacing: 0.04em; }
   .qitem .qbody .qmeta .tag { color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.1em; font-size: 10px; }
@@ -197,6 +198,24 @@ window.QUESTIONS = [
   .qitem .answers { text-align: right; font-size: 11px; color: var(--ink-dim); }
   .qitem .answers .wrong { color: var(--danger); }
   .qitem .answers .right { color: var(--accent-2); }
+  .bookmark-btn { background: transparent; border: none; color: var(--ink-faint); font-size: 22px; cursor: pointer; padding: 6px; line-height: 1; transition: transform 0.15s, color 0.15s; font-family: inherit; }
+  .bookmark-btn:hover { color: var(--accent-3); transform: scale(1.2); }
+  .bookmark-btn.active { color: var(--accent-3); text-shadow: 0 0 8px rgba(255,210,63,0.4); }
+  .chip.bookmark-chip { color: var(--accent-3); border-color: var(--accent-3); }
+  .chip.bookmark-chip.active { background: var(--accent-3); border-color: var(--accent-3); color: #0a0e1a; }
+
+  .service-breakdown { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .sb-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 10px; }
+  .sb-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.25); border-radius: 2px; font-size: 12px; }
+  .sb-chip .sb-name { color: var(--ink); font-weight: 600; font-family: var(--mono); }
+  .sb-chip .sb-count { color: var(--accent); font-family: var(--serif); font-weight: 600; font-size: 14px; }
+  .sb-chip.hot { background: rgba(255,62,95,0.08); border-color: rgba(255,62,95,0.35); }
+  .sb-chip.hot .sb-count { color: var(--danger); }
+
+  .qmeta-big .pill.bookmark-pill { cursor: pointer; border-color: var(--accent-3); color: var(--accent-3); transition: all 0.15s; }
+  .qmeta-big .pill.bookmark-pill:hover { background: var(--accent-3); color: var(--bg); }
+  .qmeta-big .pill.bookmark-pill.active { background: var(--accent-3); color: var(--bg); }
 
   .empty { padding: 48px 32px; text-align: center; border: 1px dashed var(--line-strong); color: var(--ink-dim); }
   .empty h3 { font-family: var(--serif); font-size: 22px; color: var(--ink); margin-bottom: 8px; font-style: italic; }
@@ -330,10 +349,11 @@ window.QUESTIONS = [
         </div>
         <div class="filterbar" id="filterbar">
           <button class="chip active" data-filter="all">All</button>
-          <button class="chip" data-filter="1">Domain 1 · Resilient</button>
-          <button class="chip" data-filter="2">Domain 2 · Performance</button>
-          <button class="chip" data-filter="3">Domain 3 · Secure</button>
-          <button class="chip" data-filter="4">Domain 4 · Cost</button>
+          <button class="chip bookmark-chip" data-filter="bookmarked">★ Bookmarked</button>
+          <button class="chip" data-filter="1">Resilient</button>
+          <button class="chip" data-filter="2">Performance</button>
+          <button class="chip" data-filter="3">Secure</button>
+          <button class="chip" data-filter="4">Cost</button>
         </div>
         <div class="qlist" id="qlist"></div>
       </section>
@@ -394,6 +414,10 @@ window.QUESTIONS = [
   const NOTES_KEY = 'saa_notes_v1';
   let notes = {};
   try { notes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch(e) {}
+
+  const BOOKMARKS_KEY = 'saa_bookmarks_v1';
+  let bookmarks = {};
+  try { bookmarks = JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || '{}'); } catch(e) {}
 
   function escapeHtml(s) {
     return (s == null ? '' : String(s))
@@ -461,6 +485,52 @@ window.QUESTIONS = [
     }
   }
 
+  async function loadBookmarksFromCloud() {
+    if (!currentUser) return;
+    try {
+      const { data, error } = await sb.from('bookmarks').select('question_id');
+      if (error) throw error;
+      const cloudSet = new Set((data || []).map(r => r.question_id));
+
+      // 로컬에만 있는 북마크를 cloud로 업로드
+      const localOnly = Object.keys(bookmarks).filter(qid => bookmarks[qid] && !cloudSet.has(qid));
+      if (localOnly.length > 0) {
+        const rows = localOnly.map(qid => ({ user_id: currentUser.id, question_id: qid }));
+        const { error: upErr } = await sb.from('bookmarks').upsert(rows);
+        if (upErr) console.warn('bookmarks migration failed:', upErr);
+        localOnly.forEach(qid => cloudSet.add(qid));
+      }
+
+      // Cloud가 source of truth
+      bookmarks = {};
+      cloudSet.forEach(qid => { bookmarks[qid] = true; });
+      localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+    } catch (e) {
+      console.error('loadBookmarksFromCloud:', e);
+    }
+  }
+
+  async function toggleBookmark(id, event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    const wasMarked = !!bookmarks[id];
+    if (wasMarked) delete bookmarks[id];
+    else bookmarks[id] = true;
+    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+
+    if (cloudOnline && currentUser) {
+      try {
+        if (wasMarked) {
+          await sb.from('bookmarks').delete().match({ user_id: currentUser.id, question_id: id });
+        } else {
+          await sb.from('bookmarks').upsert({ user_id: currentUser.id, question_id: id });
+        }
+      } catch (e) { console.error('bookmark sync:', e); }
+    }
+    render();
+    // 모달이 열려있으면 북마크 pill도 갱신
+    if (modalState && modalState.q && modalState.q.id === id) renderModal();
+  }
+
   async function initAuth() {
     try {
       const { data: { session } } = await sb.auth.getSession();
@@ -468,6 +538,8 @@ window.QUESTIONS = [
         currentUser = session.user;
         cloudOnline = true;
         await loadNotesFromCloud();
+        await loadBookmarksFromCloud();
+        render();
       } else {
         setCloudState('off');
       }
@@ -481,6 +553,8 @@ window.QUESTIONS = [
         currentUser = sess.user;
         cloudOnline = true;
         await loadNotesFromCloud();
+        await loadBookmarksFromCloud();
+        render();
         closeAuthModal();
       } else if (event === 'SIGNED_OUT') {
         currentUser = null;
@@ -613,39 +687,111 @@ window.QUESTIONS = [
     renderTopics(qs);
   }
 
+  // AWS 서비스 키워드 (topic 파싱용) — 긴 이름이 먼저 와야 부분 매칭 오염 방지
+  const SERVICE_KEYWORDS = [
+    'Network Firewall', 'Firewall Manager', 'Global Accelerator', 'Auto Scaling',
+    'Route 53', 'Route53', 'API Gateway', 'Step Functions', 'Storage Gateway',
+    'Direct Connect', 'Transit Gateway', 'Secrets Manager', 'Systems Manager',
+    'CloudFront', 'CloudWatch', 'CloudTrail', 'CloudFormation', 'Organizations',
+    'PrivateLink', 'DynamoDB', 'ElastiCache', 'GuardDuty', 'Inspector', 'Macie',
+    'Kinesis', 'Redshift', 'Athena', 'Glue', 'DataSync', 'Snowball', 'Backup',
+    'Fargate', 'Lambda', 'Aurora', 'Cognito', 'Config', 'Shield', 'WAF',
+    'KMS', 'IAM', 'RDS', 'S3', 'SQS', 'SNS', 'EC2', 'EBS', 'EFS', 'FSx',
+    'ALB', 'NLB', 'ELB', 'VPC', 'ECS', 'EKS'
+  ];
+
+  function extractServices(topic) {
+    const found = new Set();
+    const lower = (topic || '').toLowerCase();
+    for (const s of SERVICE_KEYWORDS) {
+      const needle = s.toLowerCase();
+      // 이미 상위 서비스 이름에 포함된 경우 중복 방지
+      // 예: "Auto Scaling"이 매치되면 "EC2"는 별개로 체크
+      if (lower.includes(needle)) found.add(s);
+    }
+    return [...found];
+  }
+
   function renderInsight(qs) {
     const box = document.getElementById('insight-box');
     const n = qs.length;
     if (n === 0) { box.innerHTML = ''; return; }
+
+    // 도메인 집계
     const counts = {1:0,2:0,3:0,4:0};
     qs.forEach(q => counts[q.domain]++);
     let maxD = 1, maxV = 0;
     for (const d in counts) if (counts[d] > maxV) { maxV = counts[d]; maxD = d; }
     const pct = Math.round((maxV / n) * 100);
-    let msg;
+
+    // 서비스 집계
+    const serviceCounts = {};
+    qs.forEach(q => {
+      extractServices(q.topic).forEach(s => {
+        serviceCounts[s] = (serviceCounts[s] || 0) + 1;
+      });
+    });
+    const serviceEntries = Object.entries(serviceCounts).sort((a,b) => b[1]-a[1]);
+    const repeatServices = serviceEntries.filter(([, c]) => c >= 2);
+
+    // 주제 반복 (동일 topic 문자열)
+    const topicCounts = {};
+    qs.forEach(q => { const t = q.topic || '미분류'; topicCounts[t] = (topicCounts[t]||0)+1; });
+    const repeatTopics = Object.entries(topicCounts).filter(([, c]) => c >= 2).sort((a,b) => b[1]-a[1]);
+
+    let html = '';
     if (n < 3) {
-      msg = `데이터가 아직 적습니다 (n=${n}). 3개 이상 누적되면 패턴이 드러납니다.`;
+      html = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">데이터가 아직 적습니다 (n=${n}). 3개 이상 누적되면 패턴이 드러납니다.</div></div>`;
     } else {
-      msg = `전체 오답의 <strong style="color:var(--accent)">${pct}%</strong>가 <strong>Domain ${maxD} · ${DOMAINS[maxD].name}</strong>에 몰려 있습니다. 이 영역을 집중 복습할 타이밍입니다.`;
+      let msg = `전체 오답의 <strong style="color:var(--accent)">${pct}%</strong>가 <strong>${DOMAINS[maxD].name}</strong>에 해당합니다.`;
+      if (repeatTopics.length > 0) {
+        msg += ` 특히 <strong style="color:var(--accent-3)">${escapeHtml(repeatTopics[0][0])}</strong> 주제가 <strong>${repeatTopics[0][1]}번</strong> 반복됐습니다.`;
+      } else if (repeatServices.length > 0) {
+        const top = repeatServices.slice(0, 2).map(([s,c]) => `<strong style="color:var(--accent-3)">${escapeHtml(s)}</strong>(${c}회)`).join(', ');
+        msg += ` ${top} 관련 문제가 반복 출제되고 있습니다.`;
+      }
+
+      html = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">${msg}</div>`;
+
+      // 서비스 breakdown (top 6, 2회 이상은 hot 강조)
+      const topServices = serviceEntries.slice(0, 6);
+      if (topServices.length > 0) {
+        html += `<div class="service-breakdown">
+          <div class="sb-label">◆ Service Frequency — 자주 등장한 AWS 서비스</div>
+          <div class="sb-row">${topServices.map(([s,c]) =>
+            `<span class="sb-chip ${c >= 2 ? 'hot' : ''}"><span class="sb-name">${escapeHtml(s)}</span><span class="sb-count">${c}</span></span>`
+          ).join('')}</div>
+        </div>`;
+      }
+      html += `</div>`;
     }
-    box.innerHTML = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">${msg}</div></div>`;
+    box.innerHTML = html;
   }
 
   function renderList(qs) {
     const wrap = document.getElementById('qlist');
     let items = qs;
-    if (currentFilter !== 'all') items = items.filter(q => String(q.domain) === currentFilter);
+    if (currentFilter === 'bookmarked') {
+      items = items.filter(q => bookmarks[q.id]);
+    } else if (currentFilter !== 'all') {
+      items = items.filter(q => String(q.domain) === currentFilter);
+    }
     if (items.length === 0) {
-      wrap.innerHTML = `<div class="empty"><h3>아직 비어 있습니다</h3><p>Claude에게 스크린샷을 보내서 문제를 추가하세요.</p></div>`;
+      const emptyMsg = currentFilter === 'bookmarked'
+        ? `<div class="empty"><h3>북마크한 문제가 없습니다</h3><p>문제 옆의 ★을 눌러 중요한 문제를 표시해두세요.</p></div>`
+        : `<div class="empty"><h3>아직 비어 있습니다</h3><p>Claude에게 스크린샷을 보내서 문제를 추가하세요.</p></div>`;
+      wrap.innerHTML = emptyMsg;
       return;
     }
-    wrap.innerHTML = items.map(q => `
-      <div class="qitem" onclick="openDetail('${q.id}')">
+    wrap.innerHTML = items.map(q => {
+      const marked = !!bookmarks[q.id];
+      return `
+      <div class="qitem ${marked ? 'bookmarked' : ''}" onclick="openDetail('${q.id}')">
         <div class="qnum">#${String(q.num).padStart(2,'0')}</div>
         <div class="qbody">
           <div class="qtitle">${q.topic || '(주제 미지정)'}</div>
           <div class="qmeta">
-            <span class="tag">D${q.domain} · ${DOMAINS[q.domain].name}</span>
+            <span class="tag">${DOMAINS[q.domain].name}</span>
             <span class="sep">│</span>
             <span>${(q.body || '').slice(0, 60)}${(q.body || '').length > 60 ? '…' : ''}</span>
           </div>
@@ -654,7 +800,9 @@ window.QUESTIONS = [
           <div>picked <span class="wrong">${q.picked || '—'}</span></div>
           <div>answer <span class="right">${q.correct}</span></div>
         </div>
-      </div>`).join('');
+        <button class="bookmark-btn ${marked ? 'active' : ''}" onclick="toggleBookmark('${q.id}', event)" title="${marked ? '북마크 해제' : '북마크'}">${marked ? '★' : '☆'}</button>
+      </div>`;
+    }).join('');
   }
 
   function renderChart(qs) {
@@ -699,7 +847,7 @@ window.QUESTIONS = [
     document.getElementById('chart-legend').innerHTML = Object.keys(DOMAINS).map(d => {
       const c = counts[d];
       const pct = Math.round((c/total)*100);
-      return `<div class="legend-row"><span class="swatch" style="background:${DOMAINS[d].color}"></span><span class="name">D${d} · ${DOMAINS[d].name}</span><span class="pct">${pct}%</span><span class="cnt">${c}개</span></div>`;
+      return `<div class="legend-row"><span class="swatch" style="background:${DOMAINS[d].color}"></span><span class="name">${DOMAINS[d].name}</span><span class="pct">${pct}%</span><span class="cnt">${c}개</span></div>`;
     }).join('');
   }
 
@@ -737,7 +885,8 @@ window.QUESTIONS = [
       <button class="close" onclick="closeDetail()">×</button>
       <h3>#${String(q.num).padStart(2,'0')} · ${q.topic}</h3>
       <div class="qmeta-big">
-        <span class="pill hot">Domain ${q.domain} · ${DOMAINS[q.domain].name}</span>
+        <span class="pill hot">${DOMAINS[q.domain].name}</span>
+        <span class="pill bookmark-pill ${bookmarks[q.id] ? 'active' : ''}" onclick="toggleBookmark('${q.id}', event)" title="${bookmarks[q.id] ? '북마크 해제' : '북마크 추가'}">${bookmarks[q.id] ? '★ Bookmarked' : '☆ Bookmark'}</span>
         ${revealed
           ? `${q.picked ? `<span class="pill">원래 고른 답: ${q.picked}</span>` : ''}<span class="pill ok">정답: ${q.correct}</span>`
           : `<span class="pill quiz">Quiz Mode · 답 숨김</span>`
