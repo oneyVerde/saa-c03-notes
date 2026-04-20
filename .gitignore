@@ -1,2 +1,3 @@
 # Local Supabase migration files (contain question/answer content — keep out of git)
 supabase/
+.env

@@ -237,6 +237,44 @@
   .auth-modal .logged-in .since { font-size: 11px; color: var(--ink-dim); }
   .auth-modal .signout-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--danger); color: var(--danger); font-family: inherit; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border-radius: 2px; }
   .auth-modal .signout-btn:hover { background: var(--danger); color: var(--bg); }
+
+  /* Range Accuracy Chart */
+  .range-controls { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+  .range-controls .field { display: flex; flex-direction: column; gap: 5px; }
+  .range-controls label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-dim); }
+  .range-controls input[type="number"] {
+    width: 90px; padding: 9px 12px; background: var(--bg-elev-2);
+    border: 1px solid var(--line); color: var(--ink);
+    font-family: var(--mono); font-size: 14px; border-radius: 2px;
+  }
+  .range-controls input[type="number"]:focus { outline: none; border-color: var(--accent-2); }
+  .range-controls input[type="number"]::-webkit-outer-spin-button,
+  .range-controls input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+  .range-btn {
+    padding: 9px 18px; background: var(--accent); color: #0a0e1a; border: none;
+    font-family: var(--serif); font-weight: 600; font-size: 14px; cursor: pointer;
+    border-radius: 2px; letter-spacing: 0.02em; transition: opacity 0.15s;
+  }
+  .range-btn:hover { opacity: 0.85; }
+  .range-presets { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .range-preset {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 6px 10px; border: 1px solid var(--line-strong); background: transparent;
+    color: var(--ink-dim); cursor: pointer; font-family: inherit; border-radius: 1px;
+    transition: all 0.15s;
+  }
+  .range-preset:hover { color: var(--accent-2); border-color: var(--accent-2); }
+  .range-summary {
+    display: flex; gap: 28px; flex-wrap: wrap; padding: 14px 18px;
+    background: var(--bg-elev-2); border-left: 3px solid var(--accent);
+    font-size: 13px; margin-bottom: 14px; align-items: baseline;
+  }
+  .range-summary .ssep { color: var(--line-strong); }
+  .range-summary .smetric { color: var(--ink-dim); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .range-summary .sval { font-family: var(--serif); font-size: 22px; font-weight: 600; margin: 0 6px; }
+  .range-summary .sval.wrong { color: var(--danger); }
+  .range-summary .sval.right { color: var(--accent-2); }
+  .range-chart-wrap { position: relative; height: 320px; margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -311,10 +349,45 @@
     </div>
   </div>
 
+  <section style="margin-top: 16px;">
+    <div class="section-title">
+      <span class="num">§04</span>
+      <h2>Range Accuracy</h2>
+      <div class="line"></div>
+    </div>
+    <div class="card glow" style="position: relative;">
+      <span class="asterisk" style="top: 12px; right: 18px; font-size: 32px;">*</span>
+      <div class="range-controls">
+        <div class="field">
+          <label for="range-from">시작 #</label>
+          <input type="number" id="range-from" value="1" min="1" />
+        </div>
+        <div class="field">
+          <label for="range-to">끝 #</label>
+          <input type="number" id="range-to" value="100" min="1" />
+        </div>
+        <div class="field">
+          <label for="range-bucket">구간 크기</label>
+          <input type="number" id="range-bucket" value="10" min="1" />
+        </div>
+        <button class="range-btn" onclick="renderRangeChart()">계산</button>
+        <div class="range-presets">
+          <button class="range-preset" onclick="setRangePreset(1, 50, 10)">1–50</button>
+          <button class="range-preset" onclick="setRangePreset(51, 100, 10)">51–100</button>
+          <button class="range-preset" onclick="setRangePreset(1, 100, 10)">1–100</button>
+          <button class="range-preset" onclick="setRangePreset(1, 200, 20)">1–200</button>
+        </div>
+      </div>
+      <div class="range-summary" id="range-summary"></div>
+      <div class="range-chart-wrap"><canvas id="range-chart"></canvas></div>
+    </div>
+  </section>
+
   <div class="footer-note">
     ◆ 이 사이트는 정적 HTML 파일 하나로 배포됩니다. 문제 데이터는 <strong>Supabase DB</strong>(<code>questions</code> 테이블)에서 매 로그인마다 불러옵니다.<br>
     ◆ 새 문제를 추가하려면 Claude에게 스크린샷을 보내 UPSERT SQL을 받아 Supabase에서 실행합니다. HTML은 건드리지 않아도 됩니다.<br>
-    ◆ 메모·북마크·복습 횟수는 Supabase(로그인 시)와 <code>localStorage</code>(오프라인 캐시)에 함께 저장됩니다.
+    ◆ 메모·북마크·복습 횟수는 Supabase(로그인 시)와 <code>localStorage</code>(오프라인 캐시)에 함께 저장됩니다.<br>
+    ◆ <strong>Range Accuracy</strong>는 입력한 문제 번호 구간에서 오답 노트에 기록된 문제의 비율을 계산합니다 (기록 안 된 문제 = 정답으로 간주).
   </div>
 </div>
 
@@ -645,6 +718,7 @@
     renderList(qs);
     renderChart(qs);
     renderTopics(qs);
+    renderRangeChart();
   }
 
   // AWS 서비스 키워드 (topic 파싱용) — 긴 이름이 먼저 와야 부분 매칭 오염 방지
@@ -828,6 +902,166 @@
       return `<div style="margin-bottom:14px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span>${t}</span><span style="color:var(--ink-dim);">${c}</span></div><div style="height:3px; background:var(--line); position:relative;"><div style="position:absolute; left:0; top:0; height:100%; width:${w}%; background:linear-gradient(90deg, var(--accent), var(--accent-3));"></div></div></div>`;
     }).join('');
   }
+
+  // ============================================================
+  // Range Accuracy Chart — 문제 번호 구간별 오답률 시각화
+  // ============================================================
+  let rangeChart = null;
+
+  function setRangePreset(from, to, bucket) {
+    document.getElementById('range-from').value = from;
+    document.getElementById('range-to').value = to;
+    document.getElementById('range-bucket').value = bucket;
+    renderRangeChart();
+  }
+
+  function renderRangeChart() {
+    const ctx = document.getElementById('range-chart');
+    if (!ctx) return;
+
+    let from = parseInt(document.getElementById('range-from').value, 10);
+    let to   = parseInt(document.getElementById('range-to').value, 10);
+    let bucket = parseInt(document.getElementById('range-bucket').value, 10);
+
+    if (!Number.isFinite(from) || from < 1) from = 1;
+    if (!Number.isFinite(to)   || to   < 1) to   = from;
+    if (from > to) { const tmp = from; from = to; to = tmp; }
+    if (!Number.isFinite(bucket) || bucket < 1) {
+      bucket = Math.max(1, Math.ceil((to - from + 1) / 10));
+    }
+    // 구간이 너무 잘게 쪼개지면 50개로 캡 (성능/가독성)
+    const maxBars = 50;
+    const totalRange = to - from + 1;
+    if (totalRange / bucket > maxBars) bucket = Math.ceil(totalRange / maxBars);
+
+    // 입력값을 정규화해서 다시 보여주기
+    document.getElementById('range-from').value = from;
+    document.getElementById('range-to').value = to;
+    document.getElementById('range-bucket').value = bucket;
+
+    // 범위 안에 들어오는 오답 문제 번호 집합
+    const wrongNums = new Set();
+    getQuestions().forEach(q => {
+      const n = parseInt(q.num, 10);
+      if (Number.isFinite(n) && n >= from && n <= to) wrongNums.add(n);
+    });
+
+    // 구간(bucket)별 집계
+    const labels = [];
+    const wrongCounts = [];
+    const rightCounts = [];
+    for (let start = from; start <= to; start += bucket) {
+      const end = Math.min(start + bucket - 1, to);
+      const total = end - start + 1;
+      let wrong = 0;
+      for (let n = start; n <= end; n++) if (wrongNums.has(n)) wrong++;
+      labels.push(start === end ? `${start}` : `${start}–${end}`);
+      wrongCounts.push(wrong);
+      rightCounts.push(total - wrong);
+    }
+
+    // 전체 요약
+    const totalWrong = wrongCounts.reduce((a,b) => a+b, 0);
+    const totalRight = totalRange - totalWrong;
+    const wrongPct = totalRange > 0 ? Math.round((totalWrong / totalRange) * 1000) / 10 : 0;
+    const rightPct = Math.round((100 - wrongPct) * 10) / 10;
+
+    document.getElementById('range-summary').innerHTML = `
+      <span><span class="smetric">Range</span> <span class="sval">${from}–${to}</span> <span class="smetric">(${totalRange}문제, ${labels.length}구간)</span></span>
+      <span class="ssep">│</span>
+      <span><span class="smetric">오답</span> <span class="sval wrong">${totalWrong}</span> <span class="smetric">(${wrongPct}%)</span></span>
+      <span class="ssep">│</span>
+      <span><span class="smetric">정답</span> <span class="sval right">${totalRight}</span> <span class="smetric">(${rightPct}%)</span></span>
+    `;
+
+    // Chart.js stacked bar
+    if (rangeChart) rangeChart.destroy();
+    rangeChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '오답',
+            data: wrongCounts,
+            backgroundColor: 'rgba(255, 62, 95, 0.75)',
+            borderColor: 'rgba(255, 62, 95, 1)',
+            borderWidth: 1,
+            borderRadius: 2,
+          },
+          {
+            label: '정답 / 미기록',
+            data: rightCounts,
+            backgroundColor: 'rgba(0, 212, 168, 0.45)',
+            borderColor: 'rgba(0, 212, 168, 0.9)',
+            borderWidth: 1,
+            borderRadius: 2,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: '#e8ecf5',
+              font: { family: 'JetBrains Mono', size: 11 },
+              boxWidth: 12, boxHeight: 12,
+              padding: 14,
+            }
+          },
+          tooltip: {
+            backgroundColor: '#0a0e1a',
+            borderColor: '#303a52',
+            borderWidth: 1,
+            titleFont: { family: 'Fraunces', size: 13, weight: '600' },
+            bodyFont: { family: 'JetBrains Mono', size: 11 },
+            padding: 12,
+            callbacks: {
+              afterBody: (items) => {
+                if (!items.length) return '';
+                const idx = items[0].dataIndex;
+                const w = wrongCounts[idx];
+                const r = rightCounts[idx];
+                const t = w + r;
+                const pct = t > 0 ? Math.round((w / t) * 1000) / 10 : 0;
+                return `오답률: ${pct}%`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: { color: '#8892a6', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 45, minRotation: 0 },
+            grid: { color: 'rgba(255,255,255,0.04)' }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            ticks: {
+              color: '#8892a6',
+              stepSize: 1,
+              font: { family: 'JetBrains Mono', size: 10 },
+              precision: 0,
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            title: { display: true, text: '문항 수', color: '#4a5268', font: { family: 'JetBrains Mono', size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  // Enter 키로도 바로 계산되도록 입력에 핸들러 부착
+  ['range-from','range-to','range-bucket'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renderRangeChart(); } });
+  });
 
   let modalState = null;
 
