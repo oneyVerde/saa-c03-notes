@@ -134,11 +134,57 @@
   .service-breakdown { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
   .sb-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 10px; }
   .sb-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.25); border-radius: 2px; font-size: 12px; }
+  .sb-chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.25); border-radius: 2px; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .sb-chip:hover { background: rgba(255,107,53,0.14); border-color: rgba(255,107,53,0.55); transform: translateY(-1px); }
+  .sb-chip.active { background: var(--accent); border-color: var(--accent); }
+  .sb-chip.active .sb-name { color: #0a0e1a; }
+  .sb-chip.active .sb-count { color: #0a0e1a; }
   .sb-chip .sb-name { color: var(--ink); font-weight: 600; font-family: var(--mono); }
   .sb-chip .sb-count { color: var(--accent); font-family: var(--serif); font-weight: 600; font-size: 14px; }
   .sb-chip.hot { background: rgba(255,62,95,0.08); border-color: rgba(255,62,95,0.35); }
+  .sb-chip.hot:hover { background: rgba(255,62,95,0.18); border-color: rgba(255,62,95,0.6); }
   .sb-chip.hot .sb-count { color: var(--danger); }
+  .sb-chip.hot.active { background: var(--danger); border-color: var(--danger); }
+  .sb-chip.hot.active .sb-name { color: #0a0e1a; }
+  .sb-chip.hot.active .sb-count { color: #0a0e1a; }
+
+  /* Active service-filter banner above question list */
+  .filter-banner { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.35); border-left-width: 3px; margin-bottom: 12px; font-size: 12px; }
+  .filter-banner .fb-label { color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
+  .filter-banner .fb-name { color: var(--accent); font-family: var(--serif); font-weight: 600; font-size: 16px; }
+  .filter-banner .fb-clear { margin-left: auto; background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim); font-family: inherit; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 10px; cursor: pointer; border-radius: 1px; transition: all 0.15s; }
+  .filter-banner .fb-clear:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Pagination */
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--ink-dim); flex-wrap: wrap; }
+  .pager .pg-info { letter-spacing: 0.05em; }
+  .pager .pg-info strong { color: var(--ink); font-family: var(--serif); font-weight: 600; }
+  .pager .pg-controls { display: flex; gap: 4px; align-items: center; }
+  .pager button {
+    background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim);
+    font-family: inherit; font-size: 11px; letter-spacing: 0.06em; padding: 6px 12px;
+    min-width: 36px; cursor: pointer; transition: all 0.15s; border-radius: 1px;
+  }
+  .pager button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  .pager button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pager button.active { background: var(--accent); border-color: var(--accent); color: #0a0e1a; font-weight: 600; }
+  .pager .pg-ellipsis { color: var(--ink-faint); padding: 0 4px; }
+  .pager .pg-size { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .pager .pg-size select {
+    background: var(--bg-elev-2); color: var(--ink); border: 1px solid var(--line);
+    padding: 4px 8px; font-family: inherit; font-size: 11px; border-radius: 1px; cursor: pointer;
+  }
+
+  /* Range custom intervals input */
+  .range-controls input[type="text"].range-text {
+    width: 280px; padding: 9px 12px; background: var(--bg-elev-2);
+    border: 1px solid var(--line); color: var(--ink);
+    font-family: var(--mono); font-size: 13px; border-radius: 2px;
+  }
+  .range-controls input[type="text"].range-text:focus { outline: none; border-color: var(--accent-2); }
+  .range-controls input[type="text"].range-text::placeholder { color: var(--ink-faint); }
+  .range-help { font-size: 11px; color: var(--ink-faint); margin-bottom: 12px; line-height: 1.6; }
+  .range-help code { background: var(--bg-elev-2); padding: 1px 6px; color: var(--accent-2); font-family: var(--mono); font-size: 11px; border-radius: 2px; }
 
   .qmeta-big .pill.bookmark-pill { cursor: pointer; border-color: var(--accent-3); color: var(--accent-3); transition: all 0.15s; }
   .qmeta-big .pill.bookmark-pill:hover { background: var(--accent-3); color: var(--bg); }
@@ -320,7 +366,9 @@
           <button class="chip" data-filter="3">Secure</button>
           <button class="chip" data-filter="4">Cost</button>
         </div>
+        <div id="filter-banner-slot"></div>
         <div class="qlist" id="qlist"></div>
+        <div id="pager-slot"></div>
       </section>
     </div>
 
@@ -337,46 +385,36 @@
           <div class="chart-legend" id="chart-legend"></div>
         </div>
       </section>
-
-      <section>
-        <div class="section-title">
-          <span class="num">§03</span>
-          <h2>Topic Frequency</h2>
-          <div class="line"></div>
-        </div>
-        <div class="card"><div id="topic-list"></div></div>
-      </section>
     </div>
   </div>
 
   <section style="margin-top: 16px;">
     <div class="section-title">
-      <span class="num">§04</span>
+      <span class="num">§03</span>
       <h2>Range Accuracy</h2>
       <div class="line"></div>
     </div>
     <div class="card glow" style="position: relative;">
       <span class="asterisk" style="top: 12px; right: 18px; font-size: 32px;">*</span>
       <div class="range-controls">
-        <div class="field">
-          <label for="range-from">시작 #</label>
-          <input type="number" id="range-from" value="1" min="1" />
-        </div>
-        <div class="field">
-          <label for="range-to">끝 #</label>
-          <input type="number" id="range-to" value="100" min="1" />
-        </div>
-        <div class="field">
-          <label for="range-bucket">구간 크기</label>
-          <input type="number" id="range-bucket" value="10" min="1" />
+        <div class="field" style="flex: 1; min-width: 280px;">
+          <label for="range-input">구간 (균등 또는 비균등)</label>
+          <input type="text" id="range-input" class="range-text" value="1-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71-80, 81-90, 91-100"
+                 placeholder="예: 1-10, 11-51, 52-102  또는  1-100/10" />
         </div>
         <button class="range-btn" onclick="renderRangeChart()">계산</button>
         <div class="range-presets">
-          <button class="range-preset" onclick="setRangePreset(1, 50, 10)">1–50</button>
-          <button class="range-preset" onclick="setRangePreset(51, 100, 10)">51–100</button>
-          <button class="range-preset" onclick="setRangePreset(1, 100, 10)">1–100</button>
-          <button class="range-preset" onclick="setRangePreset(1, 200, 20)">1–200</button>
+          <button class="range-preset" onclick="setRangePreset('1-50/10')">1–50</button>
+          <button class="range-preset" onclick="setRangePreset('51-100/10')">51–100</button>
+          <button class="range-preset" onclick="setRangePreset('1-100/10')">1–100</button>
+          <button class="range-preset" onclick="setRangePreset('1-200/20')">1–200</button>
         </div>
+      </div>
+      <div class="range-help">
+        ◆ <strong>균등 분할</strong>: <code>시작-끝/구간크기</code> 형식 (예: <code>1-100/10</code>) →
+        자동으로 1-10, 11-20, ... 으로 나눔.<br>
+        ◆ <strong>비균등 분할</strong>: 콤마로 직접 구간 나열 (예: <code>1-10, 11-51, 52-102</code>) →
+        구간마다 다른 크기 가능. 풀어본 진도가 일정하지 않을 때 유용.
       </div>
       <div class="range-summary" id="range-summary"></div>
       <div class="range-chart-wrap"><canvas id="range-chart"></canvas></div>
@@ -387,7 +425,8 @@
     ◆ 이 사이트는 정적 HTML 파일 하나로 배포됩니다. 문제 데이터는 <strong>Supabase DB</strong>(<code>questions</code> 테이블)에서 매 로그인마다 불러옵니다.<br>
     ◆ 새 문제를 추가하려면 Claude에게 스크린샷을 보내 UPSERT SQL을 받아 Supabase에서 실행합니다. HTML은 건드리지 않아도 됩니다.<br>
     ◆ 메모·북마크·복습 횟수는 Supabase(로그인 시)와 <code>localStorage</code>(오프라인 캐시)에 함께 저장됩니다.<br>
-    ◆ <strong>Range Accuracy</strong>는 입력한 문제 번호 구간에서 오답 노트에 기록된 문제의 비율을 계산합니다 (기록 안 된 문제 = 정답으로 간주).
+    ◆ <strong>Range Accuracy</strong>는 입력한 문제 번호 구간에서 오답 노트에 기록된 문제의 비율을 계산합니다 (기록 안 된 문제 = 정답으로 간주). 구간을 비균등(<code>1-10, 11-51, 52-102</code>)으로 입력하면 진도별 정답률 추세를 꺾은선으로 볼 수 있습니다.<br>
+    ◆ <strong>Service Frequency</strong> 칩을 클릭하면 해당 AWS 서비스를 다룬 문제만 §01 리스트에 필터링됩니다.
   </div>
 </div>
 
@@ -704,10 +743,34 @@
   initAuth();
 
   let chart = null;
+  // currentFilter: 'all' | 'bookmarked' | '1' | '2' | '3' | '4' | 'service:Lambda' (etc.)
   let currentFilter = 'all';
+
+  // Pagination state for §01 question list
+  let currentPage = 1;
+  let pageSize = 10;
+  try {
+    const savedSize = parseInt(localStorage.getItem('saa_page_size_v1') || '', 10);
+    if ([5,10,20,50].includes(savedSize)) pageSize = savedSize;
+  } catch (e) {}
 
   function getQuestions() {
     return (questionsCache || []).slice().sort((a,b) => (a.num||0) - (b.num||0));
+  }
+
+  function setFilter(f, opts) {
+    // opts.silent = true 이면 chip 활성 클래스 갱신 안 함 (서비스 필터 등 외부 트리거에서 사용)
+    if (currentFilter !== f) currentPage = 1;
+    currentFilter = f;
+    // §01 filterbar의 chip 활성 상태를 동기화
+    document.querySelectorAll('#filterbar .chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.filter === f);
+    });
+    render();
+  }
+
+  function clearServiceFilter() {
+    setFilter('all');
   }
 
   function render() {
@@ -717,7 +780,6 @@
     renderInsight(qs);
     renderList(qs);
     renderChart(qs);
-    renderTopics(qs);
     renderRangeChart();
   }
 
@@ -787,14 +849,18 @@
 
       html = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">${msg}</div>`;
 
-      // 서비스 breakdown (top 6, 2회 이상은 hot 강조)
+      // 서비스 breakdown (top 6, 2회 이상은 hot 강조). 클릭 시 §01 리스트 필터링.
       const topServices = serviceEntries.slice(0, 6);
       if (topServices.length > 0) {
         html += `<div class="service-breakdown">
-          <div class="sb-label">◆ Service Frequency — 자주 등장한 AWS 서비스</div>
-          <div class="sb-row">${topServices.map(([s,c]) =>
-            `<span class="sb-chip ${c >= 2 ? 'hot' : ''}"><span class="sb-name">${escapeHtml(s)}</span><span class="sb-count">${c}</span></span>`
-          ).join('')}</div>
+          <div class="sb-label">◆ Service Frequency — 자주 등장한 AWS 서비스 (클릭하면 필터링)</div>
+          <div class="sb-row">${topServices.map(([s,c]) => {
+            const active = currentFilter === ('service:' + s);
+            const cls = `sb-chip ${c >= 2 ? 'hot' : ''} ${active ? 'active' : ''}`;
+            return `<button type="button" class="${cls}" onclick="setFilter('service:${escapeHtml(s)}')" title="${escapeHtml(s)} 관련 문제만 보기">
+              <span class="sb-name">${escapeHtml(s)}</span><span class="sb-count">${c}</span>
+            </button>`;
+          }).join('')}</div>
         </div>`;
       }
       html += `</div>`;
@@ -804,15 +870,38 @@
 
   function renderList(qs) {
     const wrap = document.getElementById('qlist');
+    const bannerSlot = document.getElementById('filter-banner-slot');
+    const pagerSlot = document.getElementById('pager-slot');
+
     let items = qs;
+    let serviceName = null;
     if (currentFilter === 'bookmarked') {
       items = items.filter(q => bookmarks[q.id]);
+    } else if (currentFilter && currentFilter.startsWith('service:')) {
+      serviceName = currentFilter.slice('service:'.length);
+      const needle = serviceName.toLowerCase();
+      items = items.filter(q => (q.topic || '').toLowerCase().includes(needle));
     } else if (currentFilter !== 'all') {
       items = items.filter(q => String(q.domain) === currentFilter);
     }
+
+    // 서비스 필터 활성 시 §01 위에 배너 표시
+    if (bannerSlot) {
+      bannerSlot.innerHTML = serviceName
+        ? `<div class="filter-banner">
+             <span class="fb-label">필터링 중</span>
+             <span class="fb-name">${escapeHtml(serviceName)}</span>
+             <span style="color:var(--ink-faint); font-size:11px;">— ${items.length}개 매칭</span>
+             <button class="fb-clear" onclick="clearServiceFilter()">× 클리어</button>
+           </div>`
+        : '';
+    }
+
     if (items.length === 0) {
       let emptyMsg;
-      if (currentFilter === 'bookmarked') {
+      if (serviceName) {
+        emptyMsg = `<div class="empty"><h3>${escapeHtml(serviceName)} 관련 문제가 없습니다</h3><p>다른 서비스를 선택하거나 필터를 클리어하세요.</p></div>`;
+      } else if (currentFilter === 'bookmarked') {
         emptyMsg = `<div class="empty"><h3>북마크한 문제가 없습니다</h3><p>문제 옆의 ★을 눌러 중요한 문제를 표시해두세요.</p></div>`;
       } else if (!currentUser) {
         emptyMsg = `<div class="empty"><h3>로그인하면 문제가 나타납니다</h3><p>문제 데이터는 Supabase DB에 저장되어 있습니다. 우측 상단 <strong>Cloud Sync</strong> 버튼으로 로그인하세요.</p></div>`;
@@ -820,9 +909,18 @@
         emptyMsg = `<div class="empty"><h3>아직 비어 있습니다</h3><p>Claude에게 스크린샷을 보내서 문제를 추가하세요.</p></div>`;
       }
       wrap.innerHTML = emptyMsg;
+      if (pagerSlot) pagerSlot.innerHTML = '';
       return;
     }
-    wrap.innerHTML = items.map(q => {
+
+    // 페이징
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const startIdx = (currentPage - 1) * pageSize;
+    const pageItems = items.slice(startIdx, startIdx + pageSize);
+
+    wrap.innerHTML = pageItems.map(q => {
       const marked = !!bookmarks[q.id];
       return `
       <div class="qitem ${marked ? 'bookmarked' : ''}" onclick="openDetail('${q.id}')">
@@ -842,6 +940,70 @@
         <button class="bookmark-btn ${marked ? 'active' : ''}" onclick="toggleBookmark('${q.id}', event)" title="${marked ? '북마크 해제' : '북마크'}">${marked ? '★' : '☆'}</button>
       </div>`;
     }).join('');
+
+    if (pagerSlot) pagerSlot.innerHTML = renderPagerHTML(items.length, totalPages, startIdx, pageItems.length);
+  }
+
+  // ---- Pagination helpers ----
+  function renderPagerHTML(totalItems, totalPages, startIdx, shownCount) {
+    const fromN = startIdx + 1;
+    const toN = startIdx + shownCount;
+
+    // 페이지 번호 버튼: 처음, 끝, 현재 주변 ±2 만 노출. 그 사이는 ... 으로.
+    const pages = [];
+    const push = (p) => pages.push(p);
+    const window = 2;
+    const min = Math.max(1, currentPage - window);
+    const max = Math.min(totalPages, currentPage + window);
+    if (min > 1) push(1);
+    if (min > 2) push('…');
+    for (let p = min; p <= max; p++) push(p);
+    if (max < totalPages - 1) push('…');
+    if (max < totalPages) push(totalPages);
+
+    const buttons = pages.map(p => {
+      if (p === '…') return `<span class="pg-ellipsis">…</span>`;
+      const active = p === currentPage ? 'active' : '';
+      return `<button class="${active}" onclick="goToPage(${p})">${p}</button>`;
+    }).join('');
+
+    return `
+      <div class="pager">
+        <div class="pg-info"><strong>${fromN}</strong>–<strong>${toN}</strong> / <strong>${totalItems}</strong>개</div>
+        <div class="pg-controls">
+          <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} title="이전">‹</button>
+          ${buttons}
+          <button onclick="goToPage(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} title="다음">›</button>
+        </div>
+        <label class="pg-size">
+          페이지당
+          <select onchange="setPageSize(this.value)">
+            <option value="5"  ${pageSize===5  ? 'selected' : ''}>5</option>
+            <option value="10" ${pageSize===10 ? 'selected' : ''}>10</option>
+            <option value="20" ${pageSize===20 ? 'selected' : ''}>20</option>
+            <option value="50" ${pageSize===50 ? 'selected' : ''}>50</option>
+          </select>
+        </label>
+      </div>`;
+  }
+
+  function goToPage(p) {
+    const n = parseInt(p, 10);
+    if (!Number.isFinite(n)) return;
+    currentPage = n;
+    renderList(getQuestions());
+    // 리스트 상단으로 스크롤
+    const top = document.getElementById('filterbar');
+    if (top) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function setPageSize(v) {
+    const n = parseInt(v, 10);
+    if (![5,10,20,50].includes(n)) return;
+    pageSize = n;
+    currentPage = 1;
+    try { localStorage.setItem('saa_page_size_v1', String(n)); } catch (e) {}
+    renderList(getQuestions());
   }
 
   function renderChart(qs) {
@@ -890,112 +1052,190 @@
     }).join('');
   }
 
-  function renderTopics(qs) {
-    const list = document.getElementById('topic-list');
-    if (qs.length === 0) { list.innerHTML = `<div style="color:var(--ink-faint); font-size:12px; text-align:center; padding:20px;">데이터 없음</div>`; return; }
-    const topics = {};
-    qs.forEach(q => { const t = q.topic || '미분류'; topics[t] = (topics[t]||0)+1; });
-    const entries = Object.entries(topics).sort((a,b) => b[1]-a[1]);
-    const max = entries[0][1];
-    list.innerHTML = entries.map(([t,c]) => {
-      const w = (c/max)*100;
-      return `<div style="margin-bottom:14px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span>${t}</span><span style="color:var(--ink-dim);">${c}</span></div><div style="height:3px; background:var(--line); position:relative;"><div style="position:absolute; left:0; top:0; height:100%; width:${w}%; background:linear-gradient(90deg, var(--accent), var(--accent-3));"></div></div></div>`;
-    }).join('');
-  }
-
   // ============================================================
-  // Range Accuracy Chart — 문제 번호 구간별 오답률 시각화
+  // Range Accuracy Chart — 문제 번호 구간별 정답률/오답률 추세 (꺾은선)
   // ============================================================
   let rangeChart = null;
 
-  function setRangePreset(from, to, bucket) {
-    document.getElementById('range-from').value = from;
-    document.getElementById('range-to').value = to;
-    document.getElementById('range-bucket').value = bucket;
+  function setRangePreset(spec) {
+    const el = document.getElementById('range-input');
+    if (!el) return;
+    el.value = expandRangeSpec(spec); // 균등 형식이면 명시적 구간으로 펼쳐서 보여줌
     renderRangeChart();
+  }
+
+  // ----- 구간 입력 파싱 -----
+  // 지원 포맷:
+  //   "1-100/10"               → 균등 분할 (1-10, 11-20, ..., 91-100)
+  //   "10"                     → 1부터 끝까지 10씩 (끝이 없으면 maxNum 사용)
+  //   "1-10, 11-51, 52-102"    → 비균등 명시
+  //   "1-10; 11-51"            → 세미콜론도 허용
+  function parseRangeSpec(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return [];
+
+    // "from-to/bucket" 균등 형식
+    const uniform = s.match(/^(\d+)\s*-\s*(\d+)\s*\/\s*(\d+)$/);
+    if (uniform) {
+      const from = parseInt(uniform[1], 10);
+      const to   = parseInt(uniform[2], 10);
+      const bk   = parseInt(uniform[3], 10);
+      return buildUniformBuckets(from, to, bk);
+    }
+
+    // 단일 숫자 = 1부터 maxNum까지 그 크기로
+    if (/^\d+$/.test(s)) {
+      const bk = parseInt(s, 10);
+      const qs = getQuestions();
+      const maxNum = qs.length ? Math.max(...qs.map(q => parseInt(q.num,10) || 0)) : 100;
+      return buildUniformBuckets(1, Math.max(maxNum, bk), bk);
+    }
+
+    // 콤마/세미콜론 구분 구간 리스트
+    const parts = s.split(/[,;]/).map(p => p.trim()).filter(Boolean);
+    const buckets = [];
+    for (const p of parts) {
+      const m = p.match(/^(\d+)\s*[-~–—]\s*(\d+)$/);
+      if (!m) continue;
+      let a = parseInt(m[1], 10);
+      let b = parseInt(m[2], 10);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
+      if (a > b) { const t=a; a=b; b=t; }
+      if (a < 1) a = 1;
+      buckets.push([a, b]);
+    }
+    return buckets;
+  }
+
+  function buildUniformBuckets(from, to, bk) {
+    if (!Number.isFinite(from) || from < 1) from = 1;
+    if (!Number.isFinite(to)   || to   < from) to = from;
+    if (!Number.isFinite(bk)   || bk   < 1) bk = Math.max(1, Math.ceil((to - from + 1) / 10));
+    // 너무 잘게 쪼개지지 않도록 max 100구간
+    const totalRange = to - from + 1;
+    if (totalRange / bk > 100) bk = Math.ceil(totalRange / 100);
+    const out = [];
+    for (let s = from; s <= to; s += bk) out.push([s, Math.min(s + bk - 1, to)]);
+    return out;
+  }
+
+  // 균등/단축 입력을 명시적 "1-10, 11-20, ..." 으로 펼쳐서 input에 보여주는 헬퍼
+  function expandRangeSpec(spec) {
+    const buckets = parseRangeSpec(spec);
+    return buckets.map(([a,b]) => a === b ? `${a}` : `${a}-${b}`).join(', ');
   }
 
   function renderRangeChart() {
     const ctx = document.getElementById('range-chart');
     if (!ctx) return;
 
-    let from = parseInt(document.getElementById('range-from').value, 10);
-    let to   = parseInt(document.getElementById('range-to').value, 10);
-    let bucket = parseInt(document.getElementById('range-bucket').value, 10);
+    const inputEl = document.getElementById('range-input');
+    const raw = inputEl ? inputEl.value : '1-100/10';
+    let buckets = parseRangeSpec(raw);
 
-    if (!Number.isFinite(from) || from < 1) from = 1;
-    if (!Number.isFinite(to)   || to   < 1) to   = from;
-    if (from > to) { const tmp = from; from = to; to = tmp; }
-    if (!Number.isFinite(bucket) || bucket < 1) {
-      bucket = Math.max(1, Math.ceil((to - from + 1) / 10));
+    if (buckets.length === 0) {
+      // 파싱 실패 → 기본값으로 폴백
+      buckets = buildUniformBuckets(1, 100, 10);
+      if (inputEl) inputEl.value = '1-100/10';
     }
-    // 구간이 너무 잘게 쪼개지면 50개로 캡 (성능/가독성)
-    const maxBars = 50;
-    const totalRange = to - from + 1;
-    if (totalRange / bucket > maxBars) bucket = Math.ceil(totalRange / maxBars);
 
-    // 입력값을 정규화해서 다시 보여주기
-    document.getElementById('range-from').value = from;
-    document.getElementById('range-to').value = to;
-    document.getElementById('range-bucket').value = bucket;
+    // 입력을 명시적 구간으로 정규화해서 다시 보여주기 (재현·편집 쉽게)
+    if (inputEl) inputEl.value = buckets.map(([a,b]) => a === b ? `${a}` : `${a}-${b}`).join(', ');
 
     // 범위 안에 들어오는 오답 문제 번호 집합
+    const minStart = Math.min(...buckets.map(b => b[0]));
+    const maxEnd   = Math.max(...buckets.map(b => b[1]));
     const wrongNums = new Set();
     getQuestions().forEach(q => {
       const n = parseInt(q.num, 10);
-      if (Number.isFinite(n) && n >= from && n <= to) wrongNums.add(n);
+      if (Number.isFinite(n) && n >= minStart && n <= maxEnd) wrongNums.add(n);
     });
 
-    // 구간(bucket)별 집계
+    // 구간별 집계: 정답률(%) / 오답률(%) + 카운트
     const labels = [];
+    const rightPctArr = [];
+    const wrongPctArr = [];
     const wrongCounts = [];
     const rightCounts = [];
-    for (let start = from; start <= to; start += bucket) {
-      const end = Math.min(start + bucket - 1, to);
+    const sizes = [];
+
+    for (const [start, end] of buckets) {
       const total = end - start + 1;
       let wrong = 0;
       for (let n = start; n <= end; n++) if (wrongNums.has(n)) wrong++;
+      const right = total - wrong;
+      const wPct = total > 0 ? Math.round((wrong / total) * 1000) / 10 : 0;
+      const rPct = Math.round((100 - wPct) * 10) / 10;
       labels.push(start === end ? `${start}` : `${start}–${end}`);
       wrongCounts.push(wrong);
-      rightCounts.push(total - wrong);
+      rightCounts.push(right);
+      wrongPctArr.push(wPct);
+      rightPctArr.push(rPct);
+      sizes.push(total);
     }
 
     // 전체 요약
+    const totalRange = sizes.reduce((a,b) => a+b, 0);
     const totalWrong = wrongCounts.reduce((a,b) => a+b, 0);
     const totalRight = totalRange - totalWrong;
-    const wrongPct = totalRange > 0 ? Math.round((totalWrong / totalRange) * 1000) / 10 : 0;
-    const rightPct = Math.round((100 - wrongPct) * 10) / 10;
+    const overallWrongPct = totalRange > 0 ? Math.round((totalWrong / totalRange) * 1000) / 10 : 0;
+    const overallRightPct = Math.round((100 - overallWrongPct) * 10) / 10;
+
+    // 추세 화살표: 첫 vs 마지막 구간 정답률 비교
+    let trendIcon = '';
+    if (rightPctArr.length >= 2) {
+      const first = rightPctArr[0];
+      const last  = rightPctArr[rightPctArr.length - 1];
+      const diff = Math.round((last - first) * 10) / 10;
+      if (diff > 0)      trendIcon = `<span style="color:var(--accent-2)">▲ +${diff}%p</span>`;
+      else if (diff < 0) trendIcon = `<span style="color:var(--danger)">▼ ${diff}%p</span>`;
+      else               trendIcon = `<span style="color:var(--ink-faint)">→ 0</span>`;
+    }
 
     document.getElementById('range-summary').innerHTML = `
-      <span><span class="smetric">Range</span> <span class="sval">${from}–${to}</span> <span class="smetric">(${totalRange}문제, ${labels.length}구간)</span></span>
+      <span><span class="smetric">Range</span> <span class="sval">${minStart}–${maxEnd}</span> <span class="smetric">(${totalRange}문제, ${labels.length}구간)</span></span>
       <span class="ssep">│</span>
-      <span><span class="smetric">오답</span> <span class="sval wrong">${totalWrong}</span> <span class="smetric">(${wrongPct}%)</span></span>
+      <span><span class="smetric">오답</span> <span class="sval wrong">${totalWrong}</span> <span class="smetric">(${overallWrongPct}%)</span></span>
       <span class="ssep">│</span>
-      <span><span class="smetric">정답</span> <span class="sval right">${totalRight}</span> <span class="smetric">(${rightPct}%)</span></span>
+      <span><span class="smetric">정답</span> <span class="sval right">${totalRight}</span> <span class="smetric">(${overallRightPct}%)</span></span>
+      ${trendIcon ? `<span class="ssep">│</span><span><span class="smetric">정답률 추세</span> ${trendIcon}</span>` : ''}
     `;
 
-    // Chart.js stacked bar
+    // Chart.js line chart — 정답률↑ / 오답률↓ 추세
     if (rangeChart) rangeChart.destroy();
     rangeChart = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
         labels: labels,
         datasets: [
           {
-            label: '오답',
-            data: wrongCounts,
-            backgroundColor: 'rgba(255, 62, 95, 0.75)',
-            borderColor: 'rgba(255, 62, 95, 1)',
-            borderWidth: 1,
-            borderRadius: 2,
+            label: '정답률 %',
+            data: rightPctArr,
+            borderColor: 'rgba(0, 212, 168, 1)',
+            backgroundColor: 'rgba(0, 212, 168, 0.12)',
+            borderWidth: 2.5,
+            pointBackgroundColor: 'rgba(0, 212, 168, 1)',
+            pointBorderColor: '#0a0e1a',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            tension: 0.3,
+            fill: true,
           },
           {
-            label: '정답 / 미기록',
-            data: rightCounts,
-            backgroundColor: 'rgba(0, 212, 168, 0.45)',
-            borderColor: 'rgba(0, 212, 168, 0.9)',
-            borderWidth: 1,
-            borderRadius: 2,
+            label: '오답률 %',
+            data: wrongPctArr,
+            borderColor: 'rgba(255, 62, 95, 1)',
+            backgroundColor: 'rgba(255, 62, 95, 0.08)',
+            borderWidth: 2.5,
+            pointBackgroundColor: 'rgba(255, 62, 95, 1)',
+            pointBorderColor: '#0a0e1a',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            tension: 0.3,
+            fill: false,
+            borderDash: [4, 4],
           }
         ]
       },
@@ -1007,12 +1247,7 @@
           legend: {
             position: 'top',
             align: 'end',
-            labels: {
-              color: '#e8ecf5',
-              font: { family: 'JetBrains Mono', size: 11 },
-              boxWidth: 12, boxHeight: 12,
-              padding: 14,
-            }
+            labels: { color: '#e8ecf5', font: { family: 'JetBrains Mono', size: 11 }, boxWidth: 18, boxHeight: 3, padding: 14, usePointStyle: false }
           },
           tooltip: {
             backgroundColor: '#0a0e1a',
@@ -1025,32 +1260,28 @@
               afterBody: (items) => {
                 if (!items.length) return '';
                 const idx = items[0].dataIndex;
-                const w = wrongCounts[idx];
-                const r = rightCounts[idx];
-                const t = w + r;
-                const pct = t > 0 ? Math.round((w / t) * 1000) / 10 : 0;
-                return `오답률: ${pct}%`;
+                return [
+                  ` 오답: ${wrongCounts[idx]}개 / 총 ${sizes[idx]}개`,
+                ];
               }
             }
           }
         },
         scales: {
           x: {
-            stacked: true,
             ticks: { color: '#8892a6', font: { family: 'JetBrains Mono', size: 10 }, maxRotation: 45, minRotation: 0 },
             grid: { color: 'rgba(255,255,255,0.04)' }
           },
           y: {
-            stacked: true,
-            beginAtZero: true,
+            min: 0, max: 100,
             ticks: {
               color: '#8892a6',
-              stepSize: 1,
+              stepSize: 20,
               font: { family: 'JetBrains Mono', size: 10 },
-              precision: 0,
+              callback: (v) => v + '%'
             },
             grid: { color: 'rgba(255,255,255,0.05)' },
-            title: { display: true, text: '문항 수', color: '#4a5268', font: { family: 'JetBrains Mono', size: 10 } }
+            title: { display: true, text: '비율 (%)', color: '#4a5268', font: { family: 'JetBrains Mono', size: 10 } }
           }
         }
       }
@@ -1058,10 +1289,18 @@
   }
 
   // Enter 키로도 바로 계산되도록 입력에 핸들러 부착
-  ['range-from','range-to','range-bucket'].forEach(id => {
-    const el = document.getElementById(id);
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('range-input');
     if (el) el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renderRangeChart(); } });
   });
+  // DOMContentLoaded는 이미 지났을 가능성이 높으므로 즉시도 시도
+  (() => {
+    const el = document.getElementById('range-input');
+    if (el && !el.dataset.bound) {
+      el.dataset.bound = '1';
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); renderRangeChart(); } });
+    }
+  })();
 
   let modalState = null;
 
