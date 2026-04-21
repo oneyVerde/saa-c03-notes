@@ -219,11 +219,36 @@
   .modal .opt.revealed:hover { background: inherit; }
 
   .pill.quiz { border-color: var(--accent-2); color: var(--accent-2); }
+  .pill.multi { border-color: var(--accent-3); color: var(--accent-3); background: rgba(255,210,63,0.08); }
+  .pill.wrong { border-color: var(--danger); color: var(--danger); background: rgba(255,62,95,0.06); }
+
+  /* prev / next 네비게이션 바 */
+  .modal-nav { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; }
+  .modal-nav.top { padding-right: 44px; /* 우측 close 버튼 피하기 */ }
+  .modal-nav.bottom { margin: 24px 0 4px; padding-top: 18px; border-top: 1px dashed var(--line); }
+  .modal-nav .nav-btn { flex: 1; padding: 10px 14px; background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; cursor: pointer; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modal-nav .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.05); }
+  .modal-nav .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .modal-nav .nav-btn.prev { text-align: left; }
+  .modal-nav .nav-btn.next { text-align: right; }
+  .modal-nav .nav-pos { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); letter-spacing: 0.12em; white-space: nowrap; padding: 0 4px; }
+  @media (max-width: 640px) {
+    .modal-nav .nav-btn { font-size: 10px; padding: 8px 10px; }
+    .modal-nav .nav-pos { font-size: 9px; }
+  }
   .qhint { font-size: 11px; color: var(--ink-faint); font-style: italic; font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 8px; }
+
+  /* 복수 정답용 체크박스 표식 (옵션 letter 앞에 붙음) */
+  .modal .opt .multi-check { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid var(--line-strong); color: var(--accent); font-size: 12px; font-weight: 700; line-height: 1; transition: all 0.15s; flex-shrink: 0; }
+  .modal .opt.picked .multi-check { border-color: var(--accent); background: rgba(255,107,53,0.14); }
 
   .reveal-btn { display: block; width: 100%; margin: 24px 0 8px; padding: 16px 20px; background: linear-gradient(135deg, rgba(0,212,168,0.08), rgba(255,210,63,0.05)); border: 1px dashed var(--accent-2); color: var(--accent-2); font-family: var(--serif); font-size: 16px; font-weight: 600; font-style: italic; letter-spacing: 0.02em; cursor: pointer; transition: all 0.2s; border-radius: 2px; }
   .reveal-btn:hover { background: var(--accent-2); color: var(--bg); border-style: solid; }
   .reveal-btn .sub { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; font-style: normal; margin-top: 4px; opacity: 0.7; }
+  /* subtle: 단일답에서는 옵션 클릭이 메인 인터랙션이라 버튼은 눈에 덜 띄게 */
+  .reveal-btn.subtle { margin: 18px 0 4px; padding: 10px 14px; background: transparent; border: 1px dashed var(--line-strong); color: var(--ink-dim); font-size: 12px; font-style: normal; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+  .reveal-btn.subtle:hover { border-color: var(--accent-2); color: var(--accent-2); background: transparent; border-style: dashed; }
+  .reveal-btn.subtle .sub { font-size: 9px; margin-top: 2px; text-transform: none; letter-spacing: 0.05em; }
 
   .retry-btn { display: inline-block; margin: 16px 0 4px; padding: 7px 14px; background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim); font-family: inherit; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
   .retry-btn:hover { color: var(--accent); border-color: var(--accent); }
@@ -1304,52 +1329,151 @@
 
   let modalState = null;
 
+  // --- multi-answer helpers ---
+  // correct 필드는 "C" 또는 "C,D" 형식. 항상 정렬된 letter 배열로 반환.
+  function parseCorrect(q) {
+    return String(q && q.correct || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .sort();
+  }
+  function isMulti(q) { return parseCorrect(q).length > 1; }
+
+  // --- navigation helpers: 현재 필터 안에서 이전/다음 문제 찾기 ---
+  function getFilteredOrder() {
+    let items = getQuestions(); // 이미 num 오름차순
+    if (currentFilter === 'bookmarked') {
+      items = items.filter(q => bookmarks[q.id]);
+    } else if (currentFilter && currentFilter.startsWith('service:')) {
+      const needle = currentFilter.slice('service:'.length).toLowerCase();
+      items = items.filter(q => (q.topic || '').toLowerCase().includes(needle));
+    } else if (currentFilter !== 'all' && currentFilter) {
+      items = items.filter(q => String(q.domain) === currentFilter);
+    }
+    return items;
+  }
+  function findSiblings(qid) {
+    const items = getFilteredOrder();
+    const idx = items.findIndex(q => q.id === qid);
+    if (idx >= 0) {
+      return {
+        prev: idx > 0 ? items[idx - 1] : null,
+        next: idx < items.length - 1 ? items[idx + 1] : null,
+        position: idx + 1,
+        total: items.length,
+        inFilter: true,
+      };
+    }
+    // 현재 질문이 필터 밖에 있으면 전체에서 찾기 (안전망)
+    const all = getQuestions();
+    const i = all.findIndex(q => q.id === qid);
+    return {
+      prev: i > 0 ? all[i - 1] : null,
+      next: i >= 0 && i < all.length - 1 ? all[i + 1] : null,
+      position: i + 1,
+      total: all.length,
+      inFilter: false,
+    };
+  }
+  function navPrev() {
+    if (!modalState) return;
+    const s = findSiblings(modalState.q.id);
+    if (s.prev) openDetail(s.prev.id);
+  }
+  function navNext() {
+    if (!modalState) return;
+    const s = findSiblings(modalState.q.id);
+    if (s.next) openDetail(s.next.id);
+  }
+  function renderNavHTML(position, total, prev, next, variant) {
+    // variant: 'top' | 'bottom'
+    const prevLabel = prev ? `‹ #${String(prev.num).padStart(2,'0')}` : '‹ 이전';
+    const nextLabel = next ? `#${String(next.num).padStart(2,'0')} ›` : '다음 ›';
+    const prevTitle = prev ? escapeHtml(prev.topic || '') : '';
+    const nextTitle = next ? escapeHtml(next.topic || '') : '';
+    return `<div class="modal-nav ${variant}">
+      <button class="nav-btn prev" onclick="navPrev()" ${prev ? '' : 'disabled'} title="${prevTitle}">${prevLabel}</button>
+      <span class="nav-pos">${position} / ${total}</span>
+      <button class="nav-btn next" onclick="navNext()" ${next ? '' : 'disabled'} title="${nextTitle}">${nextLabel}</button>
+    </div>`;
+  }
+
   function openDetail(id) {
     const q = getQuestions().find(x => x.id === id);
     if (!q) return;
     // 모달 열 때는 항상 quiz mode로 시작 (답/해설 숨김)
-    modalState = { q, revealed: false, userPick: '' };
+    // userPicks: 선택한 letter 배열 (단일답이면 길이 0 또는 1, 복수답이면 여러 개)
+    modalState = { q, revealed: false, userPicks: [] };
     renderModal();
-    document.getElementById('modal-detail').classList.add('open');
+    const modal = document.getElementById('modal-detail');
+    modal.classList.add('open');
+    // 스크롤 최상단으로 초기화 (이전 질문의 스크롤 위치 잔존 방지)
+    const inner = document.getElementById('modal-content');
+    if (inner && inner.parentElement) inner.parentElement.scrollTop = 0;
   }
 
   function renderModal() {
     if (!modalState) return;
-    const { q, revealed, userPick } = modalState;
+    const { q, revealed, userPicks } = modalState;
     const reviews = reviewCounts[q.id] || 0;
     const note = notes[q.id] || '';
+    const correctList = parseCorrect(q);
+    const correctSet = new Set(correctList);
+    const multi = correctList.length > 1;
+    const pickedSet = new Set(userPicks);
+    const pickedLabel = userPicks.slice().sort().join(', ');
+    const correctLabel = correctList.join(', ');
+
+    // 전부 맞췄는지 (복수답일 때 쓰임)
+    const allCorrect = revealed
+      && userPicks.length === correctList.length
+      && userPicks.every(l => correctSet.has(l));
+
+    // 이전/다음 문제 계산 (현재 필터 기준)
+    const sib = findSiblings(q.id);
+    const navTop = renderNavHTML(sib.position, sib.total, sib.prev, sib.next, 'top');
+    const navBottom = renderNavHTML(sib.position, sib.total, sib.prev, sib.next, 'bottom');
 
     document.getElementById('modal-content').innerHTML = `
       <button class="close" onclick="closeDetail()">×</button>
+      ${navTop}
       <h3>#${String(q.num).padStart(2,'0')} · ${q.topic}</h3>
       <div class="qmeta-big">
         <span class="pill hot">${DOMAINS[q.domain].name}</span>
         <span class="pill bookmark-pill ${bookmarks[q.id] ? 'active' : ''}" onclick="toggleBookmark('${q.id}', event)" title="${bookmarks[q.id] ? '북마크 해제' : '북마크 추가'}">${bookmarks[q.id] ? '★ Bookmarked' : '☆ Bookmark'}</span>
         ${revealed
-          ? `${q.picked ? `<span class="pill">원래 고른 답: ${q.picked}</span>` : ''}<span class="pill ok">정답: ${q.correct}</span>`
-          : `<span class="pill quiz">Quiz Mode · 답 숨김</span>`
+          ? `${pickedLabel ? `<span class="pill ${allCorrect ? 'ok' : 'wrong'}">내 선택: ${pickedLabel}${allCorrect ? ' ✓' : ''}</span>` : ''}<span class="pill ok">정답: ${correctLabel}</span>`
+          : `<span class="pill quiz">Quiz Mode · 답 숨김</span>${multi ? '<span class="pill multi">복수 정답 (' + correctList.length + '개 선택)</span>' : ''}`
         }
       </div>
       <div class="q-text">${q.body || '(본문 없음)'}</div>
       ${q.options && q.options.length ? `
-        <h4>◆ Options${revealed ? '' : '<span class="qhint">— 클릭해서 답을 고른 뒤 아래 버튼으로 확인</span>'}</h4>
+        <h4>◆ Options${revealed ? '' : (multi ? '<span class="qhint">— 여러 개 선택 후 아래 버튼으로 확인</span>' : '<span class="qhint">— 옵션을 클릭하면 바로 해설이 공개돼요</span>')}</h4>
         <div class="options">${q.options.map(o => {
           let cls = '';
           if (revealed) {
             cls = 'revealed';
-            if (o.k === q.correct) cls += ' correct';
-            else if (o.k === userPick) cls += ' picked-wrong';
-          } else if (o.k === userPick) {
+            if (correctSet.has(o.k)) cls += ' correct';
+            else if (pickedSet.has(o.k)) cls += ' picked-wrong';
+          } else if (pickedSet.has(o.k)) {
             cls = 'picked';
           }
           const handler = revealed ? '' : `onclick="pickOption('${o.k}')"`;
-          return `<div class="opt ${cls}" ${handler}><span class="letter">${o.k}</span><span>${o.v}</span></div>`;
+          // 복수답일 때는 체크박스 느낌의 표식
+          const badge = (!revealed && multi)
+            ? `<span class="multi-check">${pickedSet.has(o.k) ? '✓' : ''}</span>`
+            : '';
+          return `<div class="opt ${cls}" ${handler}>${badge}<span class="letter">${o.k}</span><span>${o.v}</span></div>`;
         }).join('')}</div>
       ` : ''}
       ${revealed
         ? `${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
            <button class="retry-btn" onclick="resetQuiz()">↻ 다시 풀기 (답 다시 숨기기)</button>`
-        : `<button class="reveal-btn" onclick="revealAnswer()">◆ 정답 &amp; 해설 보기<span class="sub">Show Answer</span></button>`
+        : (multi
+          ? `<button class="reveal-btn" onclick="revealAnswer()">◆ 정답 &amp; 해설 보기<span class="sub">${userPicks.length}개 선택됨 · Show Answer</span></button>`
+          : `<button class="reveal-btn subtle" onclick="revealAnswer()">◆ 그냥 정답 &amp; 해설 보기<span class="sub">옵션을 클릭하지 않고 바로 확인</span></button>`
+        )
       }
       <div class="memo-section">
         <div class="memo-header">
@@ -1364,26 +1488,52 @@
         <span class="count" id="review-count">${reviews}</span>
         <span class="label">times</span>
         <button class="review-btn" onclick="addReview('${q.id}')">+ Mark Reviewed</button>
-      </div>`;
+      </div>
+      ${navBottom}`;
   }
 
   function pickOption(letter) {
     if (!modalState || modalState.revealed) return;
-    // 같은 옵션 두 번 클릭하면 선택 해제
-    modalState.userPick = (modalState.userPick === letter) ? '' : letter;
-    renderModal();
+    const { q } = modalState;
+    const picks = modalState.userPicks;
+    const idx = picks.indexOf(letter);
+
+    if (isMulti(q)) {
+      // 복수답: 토글. 공개는 사용자가 직접 버튼으로.
+      if (idx >= 0) picks.splice(idx, 1);
+      else picks.push(letter);
+      picks.sort();
+      renderModal();
+    } else {
+      // 단일답: 클릭 즉시 공개.
+      modalState.userPicks = [letter];
+      modalState.revealed = true;
+      renderModal();
+      scrollModalToAnswer();
+    }
   }
 
   function revealAnswer() {
     if (!modalState) return;
     modalState.revealed = true;
     renderModal();
+    scrollModalToAnswer();
+  }
+
+  function scrollModalToAnswer() {
+    // 공개 직후 해설 섹션이 보이도록 스크롤
+    requestAnimationFrame(() => {
+      const explainEl = document.querySelector('#modal-content .explain');
+      if (explainEl && typeof explainEl.scrollIntoView === 'function') {
+        explainEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   }
 
   function resetQuiz() {
     if (!modalState) return;
     modalState.revealed = false;
-    modalState.userPick = '';
+    modalState.userPicks = [];
     renderModal();
     // 스크롤을 모달 상단으로
     const modal = document.getElementById('modal-content');
@@ -1412,6 +1562,18 @@
 
   document.getElementById('modal-detail').addEventListener('click', (e) => {
     if (e.target.id === 'modal-detail') closeDetail();
+  });
+
+  // 키보드 단축키: 모달 열려있을 때 ← / → 로 이전/다음 문제, Esc 닫기
+  document.addEventListener('keydown', (e) => {
+    if (!modalState) return;
+    // 메모 textarea 등 입력 중엔 네비 건너뜀 (사용자가 글 쓰는 중일 수 있음)
+    const t = e.target;
+    const typing = t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable);
+    if (typing && e.key !== 'Escape') return;
+    if (e.key === 'ArrowLeft')       { e.preventDefault(); navPrev(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); navNext(); }
+    else if (e.key === 'Escape')     { closeDetail(); }
   });
 
   render();
