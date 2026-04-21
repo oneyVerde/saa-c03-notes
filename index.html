@@ -355,7 +355,6 @@
     <div class="brand-block">
       <div class="eyebrow"><span class="dot"></span>SAA-C03 / WRONG-ANSWER JOURNAL</div>
       <h1>오답 <em>노트</em></h1>
-      <p class="sub">틀린 문제를 도메인별로 누적해 약점을 드러낸다. Claude가 스크린샷을 읽어 분류한다.</p>
     </div>
     <div class="meta-stack">
       <div class="stat">
@@ -423,7 +422,7 @@
       <span class="asterisk" style="top: 12px; right: 18px; font-size: 32px;">*</span>
       <div class="range-controls">
         <div class="field" style="flex: 1; min-width: 280px;">
-          <label for="range-input">구간 (균등 또는 비균등)</label>
+          <label for="range-input">구간</label>
           <input type="text" id="range-input" class="range-text" value="1-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71-80, 81-90, 91-100"
                  placeholder="예: 1-10, 11-51, 52-102  또는  1-100/10" />
         </div>
@@ -446,14 +445,8 @@
     </div>
   </section>
 
-  <div class="footer-note">
-    ◆ 이 사이트는 정적 HTML 파일 하나로 배포됩니다. 문제 데이터는 <strong>Supabase DB</strong>(<code>questions</code> 테이블)에서 매 로그인마다 불러옵니다.<br>
-    ◆ 새 문제를 추가하려면 Claude에게 스크린샷을 보내 UPSERT SQL을 받아 Supabase에서 실행합니다. HTML은 건드리지 않아도 됩니다.<br>
-    ◆ 메모·북마크·복습 횟수는 Supabase(로그인 시)와 <code>localStorage</code>(오프라인 캐시)에 함께 저장됩니다.<br>
-    ◆ <strong>Range Accuracy</strong>는 입력한 문제 번호 구간에서 오답 노트에 기록된 문제의 비율을 계산합니다 (기록 안 된 문제 = 정답으로 간주). 구간을 비균등(<code>1-10, 11-51, 52-102</code>)으로 입력하면 진도별 정답률 추세를 꺾은선으로 볼 수 있습니다.<br>
-    ◆ <strong>Service Frequency</strong> 칩을 클릭하면 해당 AWS 서비스를 다룬 문제만 §01 리스트에 필터링됩니다.
   </div>
-</div>
+
 
 <div class="modal-backdrop" id="modal-detail">
   <div class="modal" id="modal-content"></div>
@@ -878,7 +871,7 @@
       const topServices = serviceEntries.slice(0, 6);
       if (topServices.length > 0) {
         html += `<div class="service-breakdown">
-          <div class="sb-label">◆ Service Frequency — 자주 등장한 AWS 서비스 (클릭하면 필터링)</div>
+          <div class="sb-label">◆ Service Frequency</div>
           <div class="sb-row">${topServices.map(([s,c]) => {
             const active = currentFilter === ('service:' + s);
             const cls = `sb-chip ${c >= 2 ? 'hot' : ''} ${active ? 'active' : ''}`;
@@ -1449,7 +1442,7 @@
       </div>
       <div class="q-text">${q.body || '(본문 없음)'}</div>
       ${q.options && q.options.length ? `
-        <h4>◆ Options${revealed ? '' : (multi ? '<span class="qhint">— 여러 개 선택 후 아래 버튼으로 확인</span>' : '<span class="qhint">— 옵션을 클릭하면 바로 해설이 공개돼요</span>')}</h4>
+        <h4>◆ Options</h4>
         <div class="options">${q.options.map(o => {
           let cls = '';
           if (revealed) {
@@ -1478,7 +1471,6 @@
       <div class="memo-section">
         <div class="memo-header">
           <span class="label">◆ My Notes</span>
-          <span class="hint">(이 기기에만 저장)</span>
           <span class="memo-status" id="memo-status"></span>
         </div>
         <textarea class="memo-box" placeholder="여기에 나만의 메모를 간략히 적어두세요..." oninput="saveNote('${q.id}', this.value)">${escapeHtml(note)}</textarea>
