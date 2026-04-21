@@ -222,19 +222,29 @@
   .pill.multi { border-color: var(--accent-3); color: var(--accent-3); background: rgba(255,210,63,0.08); }
   .pill.wrong { border-color: var(--danger); color: var(--danger); background: rgba(255,62,95,0.06); }
 
-  /* prev / next 네비게이션 바 */
-  .modal-nav { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; }
-  .modal-nav.top { padding-right: 44px; /* 우측 close 버튼 피하기 */ }
-  .modal-nav.bottom { margin: 24px 0 4px; padding-top: 18px; border-top: 1px dashed var(--line); }
-  .modal-nav .nav-btn { flex: 1; padding: 10px 14px; background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; cursor: pointer; transition: all 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .modal-nav .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.05); }
-  .modal-nav .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .modal-nav .nav-btn.prev { text-align: left; }
-  .modal-nav .nav-btn.next { text-align: right; }
-  .modal-nav .nav-pos { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); letter-spacing: 0.12em; white-space: nowrap; padding: 0 4px; }
+  /* prev / next 사이드 화살표 (뷰포트 중앙 수직 고정) */
+  .modal-side-nav {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 46px; height: 46px;
+    background: rgba(17, 24, 39, 0.92);
+    border: 1px solid var(--line-strong);
+    color: var(--ink-dim);
+    font-size: 22px; line-height: 1;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    z-index: 110;
+    transition: all 0.15s;
+  }
+  .modal-side-nav.prev { left: 24px; }
+  .modal-side-nav.next { right: 24px; }
+  .modal-side-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.1); }
+  .modal-side-nav:disabled { opacity: 0.25; cursor: not-allowed; }
   @media (max-width: 640px) {
-    .modal-nav .nav-btn { font-size: 10px; padding: 8px 10px; }
-    .modal-nav .nav-pos { font-size: 9px; }
+    .modal-side-nav { width: 38px; height: 38px; font-size: 18px; }
+    .modal-side-nav.prev { left: 10px; }
+    .modal-side-nav.next { right: 10px; }
   }
   .qhint { font-size: 11px; color: var(--ink-faint); font-style: italic; font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 8px; }
 
@@ -1379,17 +1389,11 @@
     const s = findSiblings(modalState.q.id);
     if (s.next) openDetail(s.next.id);
   }
-  function renderNavHTML(position, total, prev, next, variant) {
-    // variant: 'top' | 'bottom'
-    const prevLabel = prev ? `‹ #${String(prev.num).padStart(2,'0')}` : '‹ 이전';
-    const nextLabel = next ? `#${String(next.num).padStart(2,'0')} ›` : '다음 ›';
+  function renderNavHTML(prev, next) {
     const prevTitle = prev ? escapeHtml(prev.topic || '') : '';
     const nextTitle = next ? escapeHtml(next.topic || '') : '';
-    return `<div class="modal-nav ${variant}">
-      <button class="nav-btn prev" onclick="navPrev()" ${prev ? '' : 'disabled'} title="${prevTitle}">${prevLabel}</button>
-      <span class="nav-pos">${position} / ${total}</span>
-      <button class="nav-btn next" onclick="navNext()" ${next ? '' : 'disabled'} title="${nextTitle}">${nextLabel}</button>
-    </div>`;
+    return `<button class="modal-side-nav prev" onclick="navPrev()" ${prev ? '' : 'disabled'} title="${prevTitle}" aria-label="이전 문제">‹</button>
+      <button class="modal-side-nav next" onclick="navNext()" ${next ? '' : 'disabled'} title="${nextTitle}" aria-label="다음 문제">›</button>`;
   }
 
   function openDetail(id) {
@@ -1423,14 +1427,13 @@
       && userPicks.length === correctList.length
       && userPicks.every(l => correctSet.has(l));
 
-    // 이전/다음 문제 계산 (현재 필터 기준)
+    // 이전/다음 문제 계산 (현재 필터 기준). 뷰포트 중앙에 고정된 사이드 화살표.
     const sib = findSiblings(q.id);
-    const navTop = renderNavHTML(sib.position, sib.total, sib.prev, sib.next, 'top');
-    const navBottom = renderNavHTML(sib.position, sib.total, sib.prev, sib.next, 'bottom');
+    const sideNav = renderNavHTML(sib.prev, sib.next);
 
     document.getElementById('modal-content').innerHTML = `
       <button class="close" onclick="closeDetail()">×</button>
-      ${navTop}
+      ${sideNav}
       <h3>#${String(q.num).padStart(2,'0')} · ${q.topic}</h3>
       <div class="qmeta-big">
         <span class="pill hot">${DOMAINS[q.domain].name}</span>
@@ -1463,10 +1466,7 @@
       ${revealed
         ? `${q.explain ? `<h4>◆ Why</h4><div class="explain">${q.explain}</div>` : ''}
            <button class="retry-btn" onclick="resetQuiz()">↻ 다시 풀기 (답 다시 숨기기)</button>`
-        : (multi
-          ? `<button class="reveal-btn" onclick="revealAnswer()">◆ 정답 &amp; 해설 보기<span class="sub">${userPicks.length}개 선택됨 · Show Answer</span></button>`
-          : `<button class="reveal-btn subtle" onclick="revealAnswer()">◆ 그냥 정답 &amp; 해설 보기<span class="sub">옵션을 클릭하지 않고 바로 확인</span></button>`
-        )
+        : `<button class="reveal-btn subtle" onclick="revealAnswer()">정답 보기</button>`
       }
       <div class="memo-section">
         <div class="memo-header">
@@ -1480,8 +1480,7 @@
         <span class="count" id="review-count">${reviews}</span>
         <span class="label">times</span>
         <button class="review-btn" onclick="addReview('${q.id}')">+ Mark Reviewed</button>
-      </div>
-      ${navBottom}`;
+      </div>`;
   }
 
   function pickOption(letter) {
