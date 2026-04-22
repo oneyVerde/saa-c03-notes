@@ -813,25 +813,37 @@
 
   // AWS 서비스 키워드 (topic 파싱용) — 긴 이름이 먼저 와야 부분 매칭 오염 방지
   const SERVICE_KEYWORDS = [
+    // 복합어 / 긴 이름 먼저
+    'IAM Identity Center', 'Fast Snapshot Restore', 'Intelligent-Tiering',
+    'Reserved Instance', 'On-Demand', 'Spot Instance',
     'Network Firewall', 'Firewall Manager', 'Global Accelerator', 'Auto Scaling',
     'Route 53', 'Route53', 'API Gateway', 'Step Functions', 'Storage Gateway',
+    'Gateway Endpoint', 'VPC Endpoint', 'NAT Gateway', 'Internet Gateway',
     'Direct Connect', 'Transit Gateway', 'Secrets Manager', 'Systems Manager',
-    'CloudFront', 'CloudWatch', 'CloudTrail', 'CloudFormation', 'Organizations',
-    'PrivateLink', 'DynamoDB', 'ElastiCache', 'GuardDuty', 'Inspector', 'Macie',
+    'Session Manager', 'Run Command', 'Object Lock', 'Job Bookmark',
+    'CloudFront', 'CloudWatch', 'CloudTrail', 'CloudFormation',
+    'EventBridge', 'Organizations', 'PrivateLink', 'Bastion',
+    'DynamoDB', 'ElastiCache', 'GuardDuty', 'Inspector', 'Macie',
+    'Rekognition', 'QuickSight', 'Transfer Family',
     'Kinesis', 'Redshift', 'Athena', 'Glue', 'DataSync', 'Snowball', 'Backup',
     'Fargate', 'Lambda', 'Aurora', 'Cognito', 'Config', 'Shield', 'WAF',
-    'KMS', 'IAM', 'RDS', 'S3', 'SQS', 'SNS', 'EC2', 'EBS', 'EFS', 'FSx',
+    'KMS', 'ACM', 'IAM', 'SSO',
+    'RDS', 'S3', 'SQS', 'SNS', 'SES', 'EC2', 'EBS', 'EFS', 'FSx', 'VPN',
     'ALB', 'NLB', 'ELB', 'VPC', 'ECS', 'EKS'
   ];
 
   function extractServices(topic) {
     const found = new Set();
-    const lower = (topic || '').toLowerCase();
+    let lower = (topic || '').toLowerCase();
+    // 긴 키워드가 먼저 매칭되도록 SERVICE_KEYWORDS가 정렬돼 있음.
+    // 매칭된 구간은 공백으로 치환해서 짧은 키워드가 같은 위치에서 중복 매칭되는 것을 방지
+    // (예: "VPC Endpoint" 매치 후 "VPC"가 다시 매치되면 안 됨)
     for (const s of SERVICE_KEYWORDS) {
       const needle = s.toLowerCase();
-      // 이미 상위 서비스 이름에 포함된 경우 중복 방지
-      // 예: "Auto Scaling"이 매치되면 "EC2"는 별개로 체크
-      if (lower.includes(needle)) found.add(s);
+      if (lower.includes(needle)) {
+        found.add(s);
+        lower = lower.split(needle).join(' ');
+      }
     }
     return [...found];
   }
@@ -877,8 +889,8 @@
 
       html = `<div class="insight"><div class="label">◆ Pattern Detected</div><div class="msg">${msg}</div>`;
 
-      // 서비스 breakdown (top 6, 2회 이상은 hot 강조). 클릭 시 §01 리스트 필터링.
-      const topServices = serviceEntries.slice(0, 6);
+      // 서비스 breakdown (top 20, 2회 이상은 hot 강조). 클릭 시 §01 리스트 필터링.
+      const topServices = serviceEntries.slice(0, 20);
       if (topServices.length > 0) {
         html += `<div class="service-breakdown">
           <div class="sb-label">◆ Service Frequency</div>
