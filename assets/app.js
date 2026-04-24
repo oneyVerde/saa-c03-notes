@@ -340,6 +340,7 @@
     renderList(qs);
     renderChart(qs);
     renderRangeChart();
+    renderMatrix(qs);
   }
 
   // AWS 서비스 키워드 (topic 파싱용) — 긴 이름이 먼저 와야 부분 매칭 오염 방지
@@ -377,6 +378,65 @@
       }
     }
     return [...found];
+  }
+
+  // ============================================================
+  // Weakness Matrix — 서비스 계층 × 도메인 2D 약점 분류
+  // ============================================================
+  // 각 셀은 "이 계층 × 이 도메인"에서 몇 번 틀렸는지 표시 (heatmap).
+  // 한 문제가 여러 계층 키워드를 포함하면 각 계층에 모두 카운트됨 (coverage 관점).
+  const SERVICE_LAYERS = {
+    storage:  { label: 'Storage',  icon: '◈', hint: 'S3 · EBS · EFS · Glacier · Storage Gateway',
+                keywords: ['S3','Glacier','Intelligent-Tiering','Object Lock','EBS','EFS','FSx','Storage Gateway','Snowball','Backup','Instance Store','DataSync'] },
+    compute:  { label: 'Compute',  icon: '▶', hint: 'EC2 · Lambda · Fargate · ECS / EKS · Auto Scaling',
+                keywords: ['EC2','Lambda','Fargate','ECS','EKS','Auto Scaling','Spot Instance','Reserved Instance','On-Demand','Savings Plan','Beanstalk','Bastion'] },
+    database: { label: 'Database', icon: '▤', hint: 'RDS · Aurora · DynamoDB · ElastiCache · DAX',
+                keywords: ['RDS','Aurora','DynamoDB','ElastiCache','DAX','Redshift','DocumentDB','Neptune','DMS'] },
+  };
+
+  // 도메인 열 순서 (사용자 매트릭스 기준: 보안 → 복원력 → 성능 → 비용)
+  const MATRIX_DOMAIN_COLS = [
+    { id: 3, label: '보안',   varName: '--accent-3' },
+    { id: 1, label: '복원력', varName: '--accent'   },
+    { id: 2, label: '고성능', varName: '--accent-2' },
+    { id: 4, label: '비용',   varName: '--domain-4' },
+  ];
+
+  // 사용자가 제공한 약점 매트릭 — 각 셀에서 출제되는 대표 주제 힌트
+  const MATRIX_CELL_HINTS = {
+    'storage|3':  '버킷 정책, KMS 암호화 통제',
+    'storage|1':  '교차 리전 복제(CRR), 버전 관리',
+    'storage|2':  'Transfer Acceleration, 멀티파트',
+    'storage|4':  '수명 주기, Glacier 전환',
+    'compute|3':  'IAM Role (PassRole), 인스턴스 프로파일',
+    'compute|1':  'ASG 수명 주기, 다중 AZ 배포',
+    'compute|2':  '컴퓨팅 최적화, Lambda 동시성',
+    'compute|4':  'Spot, Savings Plans',
+    'database|3': 'Secrets Manager, 전송 중 암호화',
+    'database|1': 'Multi-AZ Failover, 백업 전략',
+    'database|2': 'Read Replica, ElastiCache / DAX',
+    'database|4': 'Aurora Serverless, 인스턴스 중지',
+  };
+
+  function detectLayers(topic) {
+    const layers = new Set();
+    const lower = (topic || '').toLowerCase();
+    for (const [key, def] of Object.entries(SERVICE_LAYERS)) {
+      for (const kw of def.keywords) {
+        if (lower.includes(kw.toLowerCase())) { layers.add(key); break; }
+      }
+    }
+    return layers;
+  }
+
+  function matchesMatrix(q, layer, domainId) {
+    if (String(q.domain) !== String(domainId)) return false;
+    const layers = detectLayers(q.topic);
+    return layers.has(layer);
+  }
+
+  function setMatrixFilter(layer, domainId) {
+    setFilter(`matrix:${layer}|${domainId}`, { silent: true });
   }
 
   function renderInsight(qs) {
@@ -446,26 +506,42 @@
 
     let items = qs;
     let serviceName = null;
+    let matrixTag = null;
     if (currentFilter === 'bookmarked') {
       items = items.filter(q => bookmarks[q.id]);
     } else if (currentFilter && currentFilter.startsWith('service:')) {
       serviceName = currentFilter.slice('service:'.length);
       const needle = serviceName.toLowerCase();
       items = items.filter(q => (q.topic || '').toLowerCase().includes(needle));
+    } else if (currentFilter && currentFilter.startsWith('matrix:')) {
+      const [layer, domId] = currentFilter.slice('matrix:'.length).split('|');
+      items = items.filter(q => matchesMatrix(q, layer, domId));
+      const layerLabel = (SERVICE_LAYERS[layer] || {}).label || layer;
+      const domLabel = (MATRIX_DOMAIN_COLS.find(d => String(d.id) === String(domId)) || {}).label || domId;
+      matrixTag = `${layerLabel} × ${domLabel}`;
     } else if (currentFilter !== 'all') {
       items = items.filter(q => String(q.domain) === currentFilter);
     }
 
-    // 서비스 필터 활성 시 §01 위에 배너 표시
+    // 서비스/매트릭스 필터 활성 시 §01 위에 배너 표시
     if (bannerSlot) {
-      bannerSlot.innerHTML = serviceName
-        ? `<div class="filter-banner">
+      if (serviceName) {
+        bannerSlot.innerHTML = `<div class="filter-banner">
              <span class="fb-label">필터링 중</span>
              <span class="fb-name">${escapeHtml(serviceName)}</span>
              <span style="color:var(--ink-faint); font-size:11px;">— ${items.length}개 매칭</span>
              <button class="fb-clear" onclick="clearServiceFilter()">× 클리어</button>
-           </div>`
-        : '';
+           </div>`;
+      } else if (matrixTag) {
+        bannerSlot.innerHTML = `<div class="filter-banner">
+             <span class="fb-label">매트릭스 필터</span>
+             <span class="fb-name">${escapeHtml(matrixTag)}</span>
+             <span style="color:var(--ink-faint); font-size:11px;">— ${items.length}개 매칭</span>
+             <button class="fb-clear" onclick="clearServiceFilter()">× 클리어</button>
+           </div>`;
+      } else {
+        bannerSlot.innerHTML = '';
+      }
     }
 
     if (items.length === 0) {
@@ -876,6 +952,68 @@
   let modalState = null;
 
   // --- multi-answer helpers ---
+  // ============================================================
+  // Weakness Matrix renderer — §04
+  // ============================================================
+  function renderMatrix(qs) {
+    const wrap = document.getElementById('matrix-wrap');
+    if (!wrap) return;
+
+    // 계층 × 도메인 카운트. 한 문제가 여러 계층에 걸치면 각 셀에 중복 카운트.
+    const counts = {};
+    const untagged = [];
+    for (const q of (qs || [])) {
+      const layers = detectLayers(q.topic);
+      if (layers.size === 0) { untagged.push(q); continue; }
+      for (const layer of layers) {
+        const key = `${layer}|${q.domain}`;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    const maxCount = Math.max(0, ...Object.values(counts));
+
+    const colHeaders = MATRIX_DOMAIN_COLS.map(c =>
+      `<th class="mx-col-head" style="color: var(${c.varName})">${c.label}</th>`
+    ).join('');
+
+    const rowsHtml = Object.entries(SERVICE_LAYERS).map(([layerKey, def]) => {
+      const cells = MATRIX_DOMAIN_COLS.map(c => {
+        const key = `${layerKey}|${c.id}`;
+        const n = counts[key] || 0;
+        const heat = maxCount > 0 ? (n / maxCount) : 0;
+        const hint = MATRIX_CELL_HINTS[key] || '';
+        const active = currentFilter === `matrix:${layerKey}|${c.id}`;
+        return `<td class="mx-cell ${n === 0 ? 'empty' : ''} ${active ? 'active' : ''}"
+                    style="--heat: ${heat.toFixed(3)}"
+                    ${n > 0 ? `onclick="setMatrixFilter('${layerKey}','${c.id}')"` : ''}
+                    title="${escapeHtml(hint)}${n > 0 ? ` — ${n}문제` : ''}">
+                  <div class="mx-count">${n}</div>
+                  <div class="mx-hint">${escapeHtml(hint)}</div>
+                </td>`;
+      }).join('');
+      return `<tr>
+        <th class="mx-row-head">
+          <span class="mx-row-icon">${def.icon}</span>
+          <span class="mx-row-label">${def.label}</span>
+          <span class="mx-row-sub">${escapeHtml(def.hint)}</span>
+        </th>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    const footNote = untagged.length > 0
+      ? `<div class="mx-foot">※ 계층 미분류 ${untagged.length}문제 (네트워킹 · 모니터링 · 거버넌스 등)</div>`
+      : '';
+
+    wrap.innerHTML = `
+      <table class="matrix-table">
+        <thead><tr><th></th>${colHeaders}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      ${footNote}
+    `;
+  }
+
   // correct 필드는 "C" 또는 "C,D" 형식. 항상 정렬된 letter 배열로 반환.
   function parseCorrect(q) {
     return String(q && q.correct || '')
@@ -894,6 +1032,9 @@
     } else if (currentFilter && currentFilter.startsWith('service:')) {
       const needle = currentFilter.slice('service:'.length).toLowerCase();
       items = items.filter(q => (q.topic || '').toLowerCase().includes(needle));
+    } else if (currentFilter && currentFilter.startsWith('matrix:')) {
+      const [layer, domId] = currentFilter.slice('matrix:'.length).split('|');
+      items = items.filter(q => matchesMatrix(q, layer, domId));
     } else if (currentFilter !== 'all' && currentFilter) {
       items = items.filter(q => String(q.domain) === currentFilter);
     }
