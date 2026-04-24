@@ -323,3 +323,106 @@
   .range-summary .sval.wrong { color: var(--danger); }
   .range-summary .sval.right { color: var(--accent-2); }
   .range-chart-wrap { position: relative; height: 320px; margin-top: 8px; }
+
+  /* ============================================================
+     §04 Weakness Matrix — 서비스 계층 × 도메인 heatmap
+     ============================================================ */
+  :root { --domain-4: #a78bfa; }  /* 비용 도메인 보조색 (기존 팔레트에 없어서 추가) */
+
+  .matrix-help { font-size: 11px; color: var(--ink-faint); line-height: 1.7; margin-bottom: 16px; }
+  .matrix-help strong { color: var(--accent-3); }
+
+  .matrix-table {
+    width: 100%; border-collapse: separate; border-spacing: 6px;
+    table-layout: fixed;
+  }
+  .matrix-table th, .matrix-table td { padding: 0; }
+
+  .matrix-table thead th {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    text-align: center; padding: 6px 4px 10px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .mx-col-head { color: var(--ink-dim); }
+
+  .mx-row-head {
+    text-align: left; padding: 12px 14px 12px 6px !important;
+    border-right: 1px dashed var(--line);
+    font-family: inherit; font-weight: 400;
+    min-width: 150px; max-width: 180px;
+  }
+  .mx-row-head .mx-row-icon {
+    display: inline-block; color: var(--accent); font-size: 18px;
+    margin-right: 8px; font-family: var(--serif);
+  }
+  .mx-row-head .mx-row-label {
+    font-family: var(--serif); font-size: 16px; font-weight: 600;
+    color: var(--ink); letter-spacing: -0.01em;
+  }
+  .mx-row-head .mx-row-sub {
+    display: block; margin-top: 4px; margin-left: 28px;
+    font-size: 10px; color: var(--ink-faint); line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+
+  .mx-cell {
+    position: relative;
+    background:
+      linear-gradient(135deg,
+        rgba(255, 62, 95, calc(var(--heat, 0) * 0.5)),
+        rgba(255, 107, 53, calc(var(--heat, 0) * 0.35)));
+    border: 1px solid var(--line);
+    padding: 14px 12px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-height: 92px;
+    vertical-align: top;
+  }
+  .mx-cell:not(.empty):hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px -6px rgba(255,107,53,0.45);
+  }
+  .mx-cell.active {
+    border-color: var(--accent);
+    border-width: 2px;
+    box-shadow: 0 0 0 2px rgba(255,107,53,0.25);
+  }
+  .mx-cell.empty {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--line);
+    cursor: default;
+  }
+  .mx-cell.empty .mx-count { color: var(--ink-faint); }
+  .mx-cell.empty .mx-hint  { opacity: 0.45; }
+
+  .mx-count {
+    font-family: var(--serif); font-size: 30px; font-weight: 600;
+    line-height: 1; letter-spacing: -0.02em; color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .mx-cell:not(.empty) .mx-count { color: var(--accent); }
+
+  .mx-hint {
+    font-size: 10.5px; line-height: 1.45;
+    color: var(--ink-dim); letter-spacing: 0.01em;
+  }
+
+  .mx-foot {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px dashed var(--line);
+    font-size: 11px; color: var(--ink-faint); font-style: italic;
+  }
+
+  @media (max-width: 720px) {
+    .matrix-table { border-spacing: 3px; }
+    .mx-row-head { min-width: 100px; max-width: 120px; padding: 10px 8px !important; }
+    .mx-row-head .mx-row-label { font-size: 13px; }
+    .mx-row-head .mx-row-sub   { display: none; }
+    .mx-row-head .mx-row-icon  { font-size: 14px; margin-right: 4px; }
+    .mx-cell { padding: 10px 8px 8px; min-height: 70px; }
+    .mx-count { font-size: 22px; margin-bottom: 4px; }
+    .mx-hint { font-size: 9.5px; }
+  }
