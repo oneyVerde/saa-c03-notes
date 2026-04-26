@@ -304,6 +304,10 @@
   let chart = null;
   // currentFilter: 'all' | 'bookmarked' | '1' | '2' | '3' | '4' | 'service:Lambda' (etc.)
   let currentFilter = 'all';
+  // searchQuery: 자유 텍스트 검색. 다른 필터와 AND로 결합됨.
+  // 토큰 파싱:  "143" → num 정확 일치, "143-160" → 범위, "143,150" → OR 리스트,
+  //           그 외 → topic/body/options/explain/서비스/도메인 라벨 substring 매칭.
+  let searchQuery = '';
 
   // Pagination state for §01 question list
   let currentPage = 1;
@@ -378,6 +382,70 @@
       }
     }
     return [...found];
+  }
+
+  // ============================================================
+  // 검색 — 번호 / 범위 / 키워드 / 서비스 / 도메인 한글 라벨까지 모두 한 박스에서.
+  // ============================================================
+  // Haystack: 한 문제의 검색 가능한 모든 텍스트를 한 줄로. 도메인 한글 라벨도
+  // 포함시켜 "보안", "복원력" 같은 검색이 가능하게 함.
+  const DOMAIN_KR = { 1: '복원력', 2: '고성능 성능', 3: '보안', 4: '비용 cost-optimized' };
+  function buildHaystack(q) {
+    const optionsText = (q.options || []).map(o => `${o.k} ${o.v}`).join(' ');
+    const services = extractServices(q.topic).join(' ');
+    const domainName = (DOMAINS[q.domain] || {}).name || '';
+    const domainKr = DOMAIN_KR[q.domain] || '';
+    return [
+      q.id, `q${q.num}`, String(q.num),
+      q.topic, q.body, optionsText, q.explain || '',
+      services, domainName, domainKr
+    ].join(' ').toLowerCase();
+  }
+
+  // 토큰 단위 매칭. 모든 토큰이 매치돼야(AND) 통과.
+  function matchesSearch(q, query) {
+    const raw = (query || '').trim();
+    if (!raw) return true;
+    const tokens = raw.toLowerCase().split(/\s+/).filter(Boolean);
+    const hay = buildHaystack(q);
+    for (const t of tokens) {
+      // 범위:  "143-160"  ("q143-q160" 도 허용)
+      const rangeM = /^q?(\d+)-q?(\d+)$/.exec(t);
+      if (rangeM) {
+        const lo = parseInt(rangeM[1], 10), hi = parseInt(rangeM[2], 10);
+        if (!(q.num >= Math.min(lo, hi) && q.num <= Math.max(lo, hi))) return false;
+        continue;
+      }
+      // 콤마 리스트: "143,150,151"
+      if (/^q?\d+(,q?\d+)+$/.test(t)) {
+        const nums = t.split(',').map(x => parseInt(x.replace(/^q/, ''), 10));
+        if (!nums.includes(q.num)) return false;
+        continue;
+      }
+      // 단일 번호: "143" / "q143"
+      const numM = /^q?(\d+)$/.exec(t);
+      if (numM) {
+        if (q.num !== parseInt(numM[1], 10)) return false;
+        continue;
+      }
+      // 그 외: 자유 텍스트 substring (대소문자 무시)
+      if (!hay.includes(t)) return false;
+    }
+    return true;
+  }
+
+  function applySearch(items) {
+    if (!searchQuery) return items;
+    return items.filter(q => matchesSearch(q, searchQuery));
+  }
+
+  // 검색창 옆 매치 카운터 갱신. 검색 비활성화 시 hidden.
+  function updateSearchCount(n) {
+    const el = document.getElementById('qsearch-count');
+    if (!el) return;
+    if (!searchQuery) { el.hidden = true; el.textContent = ''; return; }
+    el.hidden = false;
+    el.textContent = `${n} 매치`;
   }
 
   // ============================================================
@@ -522,6 +590,10 @@
     } else if (currentFilter !== 'all') {
       items = items.filter(q => String(q.domain) === currentFilter);
     }
+    // 검색은 다른 필터들과 AND로 결합 (가장 마지막에 적용)
+    items = applySearch(items);
+    // 검색창 옆 카운터 갱신
+    updateSearchCount(items.length);
 
     // 서비스/매트릭스 필터 활성 시 §01 위에 배너 표시
     if (bannerSlot) {
@@ -546,7 +618,9 @@
 
     if (items.length === 0) {
       let emptyMsg;
-      if (serviceName) {
+      if (searchQuery) {
+        emptyMsg = `<div class="empty"><h3>"${escapeHtml(searchQuery)}" 검색 결과 없음</h3><p>번호(<code>143</code>) · 범위(<code>143-160</code>) · 키워드(<code>S3</code>, <code>Lambda</code>, <code>Multi-AZ</code>, <code>보안</code>)로 검색해보세요. 필터 칩과 동시에 적용됩니다.</p></div>`;
+      } else if (serviceName) {
         emptyMsg = `<div class="empty"><h3>${escapeHtml(serviceName)} 관련 문제가 없습니다</h3><p>다른 서비스를 선택하거나 필터를 클리어하세요.</p></div>`;
       } else if (currentFilter === 'bookmarked') {
         emptyMsg = `<div class="empty"><h3>북마크한 문제가 없습니다</h3><p>문제 옆의 ★을 눌러 중요한 문제를 표시해두세요.</p></div>`;
@@ -1038,6 +1112,8 @@
     } else if (currentFilter !== 'all' && currentFilter) {
       items = items.filter(q => String(q.domain) === currentFilter);
     }
+    // 검색 필터도 동일하게 적용 (모달 내 이전/다음 네비게이션이 검색 결과 안에서만 이동)
+    items = applySearch(items);
     return items;
   }
   function findSiblings(qid) {
@@ -1226,11 +1302,66 @@
     document.getElementById('review-count').textContent = reviewCounts[id];
   }
 
+  // ============================================================
+  // §01 Search input — 번호/범위/키워드/서비스/도메인 라벨 검색
+  // ============================================================
+  (function wireSearch() {
+    const input = document.getElementById('qsearch');
+    const clearBtn = document.getElementById('qsearch-clear');
+    if (!input) return;
+
+    function commit(val) {
+      searchQuery = val || '';
+      currentPage = 1;
+      if (clearBtn) clearBtn.hidden = !searchQuery;
+      renderList(getQuestions());
+    }
+
+    // 입력 디바운스 (Korean IME composition 중에는 스킵)
+    let composing = false, t = null;
+    input.addEventListener('compositionstart', () => { composing = true; });
+    input.addEventListener('compositionend', () => { composing = false; commit(input.value); });
+    input.addEventListener('input', () => {
+      if (composing) return;
+      clearTimeout(t);
+      t = setTimeout(() => commit(input.value), 120);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        input.value = '';
+        commit('');
+      } else if (e.key === 'Enter') {
+        // 디바운스 우회 — 즉시 적용
+        clearTimeout(t);
+        commit(input.value);
+      }
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        input.value = '';
+        commit('');
+        input.focus();
+      });
+    }
+
+    // Cmd/Ctrl + K  →  검색창 포커스
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+  })();
+
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = chip.dataset.filter;
+      currentPage = 1;
       renderList(getQuestions());
     });
   });

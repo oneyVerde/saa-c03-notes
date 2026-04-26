@@ -68,6 +68,13 @@
           <h2>Wrong Answers</h2>
           <div class="line"></div>
         </div>
+        <div class="searchbar" role="search">
+          <span class="sb-icon" aria-hidden="true">⌕</span>
+          <input id="qsearch" type="search" autocomplete="off" spellcheck="false"
+                 placeholder="번호(143) · 범위(143-160) · 키워드(S3, Lambda, Multi-AZ, 보안)로 검색…" />
+          <span class="sb-count" id="qsearch-count" hidden></span>
+          <button class="sb-clear" id="qsearch-clear" type="button" hidden aria-label="검색 지우기">×</button>
+        </div>
         <div class="filterbar" id="filterbar">
           <button class="chip active" data-filter="all">All</button>
           <button class="chip bookmark-chip" data-filter="bookmarked">★ Bookmarked</button>
