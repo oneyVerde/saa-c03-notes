@@ -75,6 +75,25 @@
   .legend-row .pct { color: var(--ink-dim); }
   .legend-row .cnt { color: var(--ink-faint); font-size: 11px; }
 
+  /* Search bar (above filter chips) */
+  .searchbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 12px;
+               background: var(--bg-elev); border: 1px solid var(--line-strong); border-radius: 2px;
+               transition: border-color 0.15s, box-shadow 0.15s; }
+  .searchbar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,53,0.18); }
+  .searchbar .sb-icon { color: var(--ink-dim); font-size: 18px; line-height: 1; }
+  .searchbar input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0;
+                     color: var(--ink); font-family: var(--mono, inherit); font-size: 13px; letter-spacing: 0.02em; padding: 2px 0; }
+  .searchbar input::placeholder { color: var(--ink-faint); letter-spacing: 0.01em; }
+  .searchbar input::-webkit-search-cancel-button,
+  .searchbar input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+  .searchbar .sb-count { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+                          color: var(--accent); padding: 3px 8px; border: 1px solid rgba(255,107,53,0.4);
+                          border-radius: 1px; white-space: nowrap; }
+  .searchbar .sb-clear { background: transparent; border: 1px solid var(--line-strong); color: var(--ink-dim);
+                          font-family: inherit; font-size: 14px; line-height: 1; width: 24px; height: 24px;
+                          cursor: pointer; border-radius: 1px; transition: all 0.15s; padding: 0; }
+  .searchbar .sb-clear:hover { color: var(--accent); border-color: var(--accent); }
+
   .filterbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   .chip { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 7px 12px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-dim); cursor: pointer; transition: all 0.15s; border-radius: 1px; font-family: inherit; }
   .chip:hover { color: var(--ink); border-color: var(--ink-dim); }
